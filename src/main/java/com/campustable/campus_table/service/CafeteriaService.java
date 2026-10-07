@@ -5,12 +5,11 @@ import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.dto.CafeteriaResponse;
 import com.campustable.campus_table.dto.CafeteriaStatusResponse;
 import com.campustable.campus_table.entity.Cafeteria;
-import com.campustable.campus_table.entity.UsageSnapshot;
 import com.campustable.campus_table.repository.CafeteriaRepository;
-import com.campustable.campus_table.repository.UsageSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -18,7 +17,7 @@ import java.util.List;
 public class CafeteriaService {
 
     private final CafeteriaRepository cafeteriaRepository;
-    private final UsageSnapshotRepository usageSnapshotRepository;
+    private final OccupancyService occupancyService;
 
     public List<CafeteriaResponse> getCafeterias() {
         return cafeteriaRepository.findAll()
@@ -34,14 +33,9 @@ public class CafeteriaService {
         return CafeteriaResponse.from(cafeteria);
     }
 
+    /** 현재 이용 인원/대기 인원은 주문 데이터에서 실시간으로 계산한다. */
     public CafeteriaStatusResponse getCafeteriaStatus(Long cafeteriaId) {
-        Cafeteria cafeteria = cafeteriaRepository.findById(cafeteriaId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CAFETERIA_NOT_FOUND));
-
-        UsageSnapshot snapshot = usageSnapshotRepository
-                .findTopByCafeteriaIdOrderByRecordedAtDesc(cafeteriaId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USAGE_SNAPSHOT_NOT_FOUND));
-
-        return CafeteriaStatusResponse.from(cafeteria, snapshot);
+        return CafeteriaStatusResponse.from(
+                cafeteriaId, occupancyService.occupancy(cafeteriaId), LocalDateTime.now());
     }
 }

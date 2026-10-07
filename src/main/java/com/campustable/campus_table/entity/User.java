@@ -40,4 +40,8 @@ public class User {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    public void changeMileage(int delta) {
+        this.mileageBalance += delta;
+    }
 }

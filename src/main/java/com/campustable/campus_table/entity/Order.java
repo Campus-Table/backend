@@ -50,4 +50,27 @@ public class Order {
     private LocalDateTime leaveAt;
 
     private LocalDateTime cancelledAt;
+
+    public void arrive(LocalDateTime now, int waitingNumber, LocalDateTime expectedReadyAt) {
+        this.status = OrderStatus.COOKING;
+        this.arrivedAt = now;
+        this.arrivalDate = now.toLocalDate();
+        this.waitingNumber = waitingNumber;
+        this.expectedReadyAt = expectedReadyAt;
+    }
+
+    public void markReady() {
+        this.status = OrderStatus.READY;
+    }
+
+    public void receive(LocalDateTime receivedAt, LocalDateTime leaveAt) {
+        this.status = OrderStatus.RECEIVED;
+        this.receivedAt = receivedAt;
+        this.leaveAt = leaveAt;
+    }
+
+    public void cancel(LocalDateTime now) {
+        this.status = OrderStatus.CANCELLED;
+        this.cancelledAt = now;
+    }
 }

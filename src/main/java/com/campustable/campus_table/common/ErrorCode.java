@@ -17,7 +17,7 @@ public enum ErrorCode {
     // auth / user
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "학번 또는 비밀번호가 올바르지 않습니다."),
     DUPLICATE_STUDENT_NUMBER(HttpStatus.CONFLICT, "이미 가입된 학번입니다."),
-    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
+    MAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "인증 메일 발송에 실패했습니다."),
     EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않거나 만료되었습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사용자를 찾을 수 없습니다."),
@@ -27,7 +27,6 @@ public enum ErrorCode {
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 가게를 찾을 수 없습니다."),
     MENU_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 메뉴를 찾을 수 없습니다."),
     MENU_UNAVAILABLE(HttpStatus.BAD_REQUEST, "주문할 수 없는 메뉴입니다."),
-    USAGE_SNAPSHOT_NOT_FOUND(HttpStatus.NOT_FOUND, "혼잡도 정보를 찾을 수 없습니다."),
 
     // order
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 주문을 찾을 수 없습니다."),
@@ -36,7 +35,8 @@ public enum ErrorCode {
     INVALID_ARRIVAL_CODE(HttpStatus.BAD_REQUEST, "현장 번호가 올바르지 않습니다."),
 
     // mileage
-    INSUFFICIENT_MILEAGE(HttpStatus.BAD_REQUEST, "마일리지가 부족합니다.");
+    INSUFFICIENT_MILEAGE(HttpStatus.BAD_REQUEST, "마일리지가 부족합니다."),
+    PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제 승인에 실패했습니다.");
 
     private final HttpStatus status;
     private final String message;
