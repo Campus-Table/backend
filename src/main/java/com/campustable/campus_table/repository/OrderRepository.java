@@ -33,6 +33,24 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countCooking(@Param("storeId") Long storeId, @Param("date") LocalDate date,
                       @Param("status") OrderStatus status, @Param("now") LocalDateTime now);
 
+    @Query("select o from Order o where o.orderedAt >= :from and o.orderedAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId) and (:status is null or o.status = :status) "
+            + "order by o.id desc")
+    List<Order> search(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
+                       @Param("storeId") Long storeId, @Param("status") OrderStatus status);
+
+    /** 시간대별 통계용: 해당 기간에 주문/도착/수령 중 하나라도 발생한 주문 */
+    @Query("select o from Order o where o.store.cafeteria.id = :cafeteriaId and "
+            + "((o.orderedAt >= :from and o.orderedAt < :to) or (o.arrivedAt >= :from and o.arrivedAt < :to) "
+            + "or (o.receivedAt >= :from and o.receivedAt < :to))")
+    List<Order> findActiveInRange(@Param("cafeteriaId") Long cafeteriaId,
+                                  @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("select o from Order o where o.store.cafeteria.id = :cafeteriaId and o.status = :status "
+            + "and o.expectedReadyAt > :now order by o.store.id, o.waitingNumber")
+    List<Order> findCooking(@Param("cafeteriaId") Long cafeteriaId, @Param("status") OrderStatus status,
+                            @Param("now") LocalDateTime now);
+
     /** 학식당 현재 이용 인원: 수령했고 아직 이용 종료 시각 전인 주문 수 */
     @Query("select count(o) from Order o where o.store.cafeteria.id = :cafeteriaId "
             + "and o.status = :status and o.leaveAt > :now")
