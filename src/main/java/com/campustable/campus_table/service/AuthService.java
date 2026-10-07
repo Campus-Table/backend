@@ -32,19 +32,14 @@ public class AuthService {
 
     @Transactional
     public UserResponse signup(SignupRequest req) {
-        String email = emailVerification.normalize(req.email());
-        emailVerification.checkDomain(email);
         if (userRepository.existsByStudentNumber(req.studentNumber())) {
             throw new CustomException(ErrorCode.DUPLICATE_STUDENT_NUMBER);
         }
-        if (userRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
-        }
-        emailVerification.consumeVerified(email);
+        emailVerification.consumeVerified(req.studentNumber());
         try {
             User user = userRepository.saveAndFlush(User.builder()
                     .studentNumber(req.studentNumber())
-                    .email(email)
+                    .email(emailVerification.emailOf(req.studentNumber()))
                     .password(passwordEncoder.encode(req.password()))
                     .name(req.name().trim())
                     .build());

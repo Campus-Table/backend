@@ -38,6 +38,7 @@ server:
 
 app:
   school-email-domain: ${SCHOOL_EMAIL_DOMAIN:dankook.ac.kr}
+  mail-enabled: ${MAIL_ENABLED:true}
   toss:
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}

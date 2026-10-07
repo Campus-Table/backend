@@ -20,13 +20,13 @@ public class AuthController {
 
     @PostMapping("/email/send")
     public MessageResponse sendCode(@Valid @RequestBody EmailSendRequest req) {
-        emailVerification.sendCode(req.email());
+        emailVerification.sendCode(req.studentNumber());
         return new MessageResponse("Verification code sent");
     }
 
     @PostMapping("/email/verify")
     public MessageResponse verify(@Valid @RequestBody EmailVerifyRequest req) {
-        emailVerification.verify(req.email(), req.code());
+        emailVerification.verify(req.studentNumber(), req.code());
         return new MessageResponse("Email verified");
     }
 
