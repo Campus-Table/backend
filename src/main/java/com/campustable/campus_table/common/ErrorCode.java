@@ -36,7 +36,8 @@ public enum ErrorCode {
     INVALID_ARRIVAL_CODE(HttpStatus.BAD_REQUEST, "현장 번호가 올바르지 않습니다."),
 
     // mileage
-    INSUFFICIENT_MILEAGE(HttpStatus.BAD_REQUEST, "마일리지가 부족합니다.");
+    INSUFFICIENT_MILEAGE(HttpStatus.BAD_REQUEST, "마일리지가 부족합니다."),
+    PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제 승인에 실패했습니다.");
 
     private final HttpStatus status;
     private final String message;
