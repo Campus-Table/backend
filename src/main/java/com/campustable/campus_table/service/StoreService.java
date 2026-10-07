@@ -1,5 +1,7 @@
 package com.campustable.campus_table.service;
 
+import com.campustable.campus_table.common.CustomException;
+import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.dto.StoreResponse;
 import com.campustable.campus_table.entity.Store;
 import com.campustable.campus_table.repository.CafeteriaRepository;
@@ -18,7 +20,7 @@ public class StoreService {
 
     public List<StoreResponse> getStoresByCafeteria(Long cafeteriaId) {
         if (!cafeteriaRepository.existsById(cafeteriaId)) {
-            throw new IllegalArgumentException("해당 식당을 찾을 수 없습니다.");
+            throw new CustomException(ErrorCode.CAFETERIA_NOT_FOUND);
         }
 
         return storeRepository.findByCafeteriaId(cafeteriaId)
@@ -29,7 +31,7 @@ public class StoreService {
 
     public StoreResponse getStore(Long storeId) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 매장을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
 
         return StoreResponse.from(store);
     }

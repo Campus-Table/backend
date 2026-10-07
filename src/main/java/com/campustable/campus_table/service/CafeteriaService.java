@@ -1,5 +1,7 @@
 package com.campustable.campus_table.service;
 
+import com.campustable.campus_table.common.CustomException;
+import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.dto.CafeteriaResponse;
 import com.campustable.campus_table.dto.CafeteriaStatusResponse;
 import com.campustable.campus_table.entity.Cafeteria;
@@ -27,18 +29,18 @@ public class CafeteriaService {
 
     public CafeteriaResponse getCafeteria(Long cafeteriaId) {
         Cafeteria cafeteria = cafeteriaRepository.findById(cafeteriaId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 식당을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.CAFETERIA_NOT_FOUND));
 
         return CafeteriaResponse.from(cafeteria);
     }
 
     public CafeteriaStatusResponse getCafeteriaStatus(Long cafeteriaId) {
         Cafeteria cafeteria = cafeteriaRepository.findById(cafeteriaId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 식당을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.CAFETERIA_NOT_FOUND));
 
         UsageSnapshot snapshot = usageSnapshotRepository
                 .findTopByCafeteriaIdOrderByRecordedAtDesc(cafeteriaId)
-                .orElseThrow(() -> new IllegalArgumentException("혼잡도 정보가 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USAGE_SNAPSHOT_NOT_FOUND));
 
         return CafeteriaStatusResponse.from(cafeteria, snapshot);
     }

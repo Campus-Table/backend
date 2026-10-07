@@ -1,5 +1,7 @@
 package com.campustable.campus_table.service;
 
+import com.campustable.campus_table.common.CustomException;
+import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.dto.MenuResponse;
 import com.campustable.campus_table.repository.MenuRepository;
 import com.campustable.campus_table.repository.StoreRepository;
@@ -17,7 +19,7 @@ public class MenuService {
 
     public List<MenuResponse> getMenusByStore(Long storeId) {
         if (!storeRepository.existsById(storeId)) {
-            throw new IllegalArgumentException("해당 매장을 찾을 수 없습니다.");
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
         }
 
         return menuRepository.findByStoreId(storeId)
