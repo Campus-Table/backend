@@ -1,7 +1,6 @@
 package com.campustable.campus_table.dto;
 
-import com.campustable.campus_table.entity.Cafeteria;
-import com.campustable.campus_table.entity.UsageSnapshot;
+import com.campustable.campus_table.service.OccupancyService.Occupancy;
 
 import java.time.LocalDateTime;
 
@@ -15,33 +14,15 @@ public record CafeteriaStatusResponse(
         LocalDateTime recordedAt
 ) {
 
-    public static CafeteriaStatusResponse from(
-            Cafeteria cafeteria,
-            UsageSnapshot snapshot
-    ) {
-        double usageRate = cafeteria.getSeatCount() == 0
-                ? 0.0
-                : (double) snapshot.getCurrentPeople()
-                / cafeteria.getSeatCount() * 100;
-
-        String congestionLevel;
-
-        if (usageRate < 50) {
-            congestionLevel = "NORMAL";
-        } else if (usageRate < 80) {
-            congestionLevel = "CROWDED";
-        } else {
-            congestionLevel = "VERY_CROWDED";
-        }
-
+    public static CafeteriaStatusResponse from(Long cafeteriaId, Occupancy occupancy, LocalDateTime now) {
         return new CafeteriaStatusResponse(
-                cafeteria.getId(),
-                cafeteria.getSeatCount(),
-                snapshot.getCurrentPeople(),
-                snapshot.getWaitingPeople(),
-                usageRate,
-                congestionLevel,
-                snapshot.getRecordedAt()
+                cafeteriaId,
+                occupancy.seatCount(),
+                occupancy.currentPeople(),
+                occupancy.waitingPeople(),
+                occupancy.usageRate(),
+                occupancy.congestionLevel().name(),
+                now
         );
     }
 }
