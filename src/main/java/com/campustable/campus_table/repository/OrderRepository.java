@@ -46,6 +46,36 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findActiveInRange(@Param("cafeteriaId") Long cafeteriaId,
                                   @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    /** 대시보드/통계용: 기간 내 주문 수 (excluded 상태 제외) */
+    @Query("select count(o) from Order o where o.store.cafeteria.id = :cafeteriaId "
+            + "and o.orderedAt >= :from and o.orderedAt < :to and o.status <> :excluded")
+    long countOrdered(@Param("cafeteriaId") Long cafeteriaId, @Param("from") LocalDateTime from,
+                      @Param("to") LocalDateTime to, @Param("excluded") OrderStatus excluded);
+
+    /** [storeId, 주문 수] */
+    @Query("select o.store.id, count(o) from Order o where o.store.cafeteria.id = :cafeteriaId "
+            + "and o.orderedAt >= :from and o.orderedAt < :to and o.status <> :excluded group by o.store.id")
+    List<Object[]> countOrderedByStore(@Param("cafeteriaId") Long cafeteriaId, @Param("from") LocalDateTime from,
+                                       @Param("to") LocalDateTime to, @Param("excluded") OrderStatus excluded);
+
+    /** [storeId, 조리 중인 주문 수] */
+    @Query("select o.store.id, count(o) from Order o where o.store.cafeteria.id = :cafeteriaId "
+            + "and o.status = :status and o.expectedReadyAt > :now group by o.store.id")
+    List<Object[]> countWaitingByStore(@Param("cafeteriaId") Long cafeteriaId, @Param("status") OrderStatus status,
+                                       @Param("now") LocalDateTime now);
+
+    /** 오늘 도착 인증했고 아직 수령하지 않은 주문 (도착이 최근인 순) */
+    @Query("select o from Order o where o.store.cafeteria.id = :cafeteriaId and o.arrivalDate = :date "
+            + "and o.status in :statuses order by o.arrivedAt desc, o.id desc")
+    List<Order> findWaitings(@Param("cafeteriaId") Long cafeteriaId, @Param("date") LocalDate date,
+                             @Param("statuses") Collection<OrderStatus> statuses);
+
+    /** 시간대별 이용 인원 계산용: 이용 구간(수령 ~ 이용 종료)이 기간과 겹치는 주문 */
+    @Query("select o from Order o where o.store.cafeteria.id = :cafeteriaId and o.receivedAt is not null "
+            + "and o.receivedAt < :to and o.leaveAt > :from")
+    List<Order> findUsageIntervals(@Param("cafeteriaId") Long cafeteriaId, @Param("from") LocalDateTime from,
+                                   @Param("to") LocalDateTime to);
+
     @Query("select o from Order o where o.store.cafeteria.id = :cafeteriaId and o.status = :status "
             + "and o.expectedReadyAt > :now order by o.store.id, o.waitingNumber")
     List<Order> findCooking(@Param("cafeteriaId") Long cafeteriaId, @Param("status") OrderStatus status,

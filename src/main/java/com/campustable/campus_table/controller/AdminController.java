@@ -4,7 +4,6 @@ import com.campustable.campus_table.dto.AdminDtos.*;
 import com.campustable.campus_table.entity.OrderStatus;
 import com.campustable.campus_table.service.AdminMenuService;
 import com.campustable.campus_table.service.AdminService;
-import com.campustable.campus_table.service.OccupancyService.Occupancy;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,8 +27,18 @@ public class AdminController {
     }
 
     @GetMapping("/cafeterias/{cafeteriaId}/dashboard")
-    public Occupancy dashboard(@PathVariable Long cafeteriaId) {
+    public DashboardResponse dashboard(@PathVariable Long cafeteriaId) {
         return adminService.dashboard(cafeteriaId);
+    }
+
+    @GetMapping("/cafeterias/{cafeteriaId}/store-stats")
+    public List<StoreStat> storeStats(@PathVariable Long cafeteriaId) {
+        return adminService.storeStats(cafeteriaId);
+    }
+
+    @GetMapping("/cafeterias/{cafeteriaId}/waitings")
+    public List<WaitingOrder> waitings(@PathVariable Long cafeteriaId) {
+        return adminService.waitings(cafeteriaId);
     }
 
     @GetMapping("/cafeterias/{cafeteriaId}/queues")

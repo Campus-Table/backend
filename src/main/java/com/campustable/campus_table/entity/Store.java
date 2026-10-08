@@ -24,6 +24,12 @@ public class Store {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(length = 200)
+    private String description;
+
+    @Column(length = 30)
+    private String category;
+
     @Column(nullable = false)
     @Builder.Default
     private int avgWaitMinutes = 2;
