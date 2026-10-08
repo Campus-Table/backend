@@ -14,6 +14,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -109,7 +110,9 @@ public class OrderService {
         return toResponses(List.of(order), now).get(0);
     }
 
-    @Transactional
+    // READ_COMMITTED: 가게 락을 기다리는 동안 앞선 요청이 확정한 대기번호를 max 조회가 볼 수 있어야 한다.
+    // (기본 REPEATABLE READ는 락 대기 전에 잡힌 스냅샷을 써서 번호가 중복 발급된다)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public OrderResponse arrive(Long userId, Long orderId, String code) {
         LocalDateTime now = LocalDateTime.now();
         lockUser(userId);
