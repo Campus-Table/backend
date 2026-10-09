@@ -44,6 +44,8 @@ server:
         same-site: lax
 
 app:
+  seed:
+    enabled: ${SEED_ENABLED:false}
   clova:
     api-key: ${CLOVA_API_KEY:}
     endpoint: ${CLOVA_ENDPOINT:https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-005}
