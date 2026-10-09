@@ -63,6 +63,20 @@ public final class AdminDtos {
             @Size(max = 500, message = "이미지 URL은 500자 이하여야 합니다.") String imageUrl) {
     }
 
+    public record StoreRequest(
+            @NotBlank @Size(max = 100) String name,
+            @Size(max = 200) String description,
+            @Size(max = 30) String category,
+            @NotNull @Min(0) Integer avgWaitMinutes) { }
+
+    public record StoreAdminResponse(Long id, Long cafeteriaId, String name, String description,
+                                     String category, int avgWaitMinutes, String imageUrl) {
+        public static StoreAdminResponse from(com.campustable.campus_table.entity.Store s) {
+            return new StoreAdminResponse(s.getId(), s.getCafeteria().getId(), s.getName(),
+                    s.getDescription(), s.getCategory(), s.getAvgWaitMinutes(), s.getImageUrl());
+        }
+    }
+
     public record AvailabilityRequest(@NotNull(message = "available 값이 필요합니다.") Boolean available) {
     }
 

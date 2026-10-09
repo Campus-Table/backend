@@ -37,6 +37,21 @@ public class Store {
     @Column(length = 500)
     private String imageUrl;
 
+    @Column(length = 200)
+    private String imageObjectKey;
+
+    public void changeImage(String url, String key) {
+        this.imageUrl = url;
+        this.imageObjectKey = key;
+    }
+
+    public void update(String name, String description, String category, int avgWaitMinutes) {
+        this.name = name;
+        this.description = description;
+        this.category = category;
+        this.avgWaitMinutes = avgWaitMinutes;
+    }
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

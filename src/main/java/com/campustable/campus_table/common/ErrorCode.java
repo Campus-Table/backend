@@ -14,6 +14,11 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    INVALID_IMAGE(HttpStatus.BAD_REQUEST, "JPEG, PNG, WebP 이미지 파일만 업로드할 수 있습니다."),
+    IMAGE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "이미지는 2MB 이하여야 합니다."),
+    STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "이미지 저장소가 설정되지 않았습니다."),
+    STORAGE_FAILED(HttpStatus.BAD_GATEWAY, "이미지 저장소 처리에 실패했습니다."),
+
     // auth / user
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "학번 또는 비밀번호가 올바르지 않습니다."),
     DUPLICATE_STUDENT_NUMBER(HttpStatus.CONFLICT, "이미 가입된 학번입니다."),

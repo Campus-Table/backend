@@ -18,8 +18,26 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminController {
 
+    private final com.campustable.campus_table.service.AdminImageService imageService;
     private final AdminService adminService;
     private final AdminMenuService menuService;
+
+    @PostMapping(value = "/menus/{menuId}/image", consumes = "multipart/form-data")
+    public MenuAdminResponse uploadMenuImage(@PathVariable Long menuId,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return imageService.uploadMenu(menuId, file);
+    }
+
+    @PostMapping(value = "/stores/{storeId}/image", consumes = "multipart/form-data")
+    public StoreAdminResponse uploadStoreImage(@PathVariable Long storeId,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return imageService.uploadStore(storeId, file);
+    }
+
+    @PutMapping("/stores/{storeId}")
+    public StoreAdminResponse updateStore(@PathVariable Long storeId, @Valid @RequestBody StoreRequest req) {
+        return imageService.updateStore(storeId, req);
+    }
 
     @GetMapping("/cafeterias/{cafeteriaId}/arrival-code")
     public ArrivalCodeResponse arrivalCode(@PathVariable Long cafeteriaId) {

@@ -12,6 +12,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ErrorResponse> uploadTooLarge(Exception e) {
+        return build(ErrorResponse.of(ErrorCode.IMAGE_TOO_LARGE));
+    }
+
     @ExceptionHandler(CustomException.class)
     ResponseEntity<ErrorResponse> custom(CustomException e) {
         return build(ErrorResponse.of(e.getErrorCode()));

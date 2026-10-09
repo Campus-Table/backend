@@ -56,15 +56,15 @@ public class AdminService {
         Map<Long, List<TopMenu>> topByStore = new HashMap<>();
         orderItemRepository.menuOrderCountsByCafeteria(cafeteriaId, from, to, OrderStatus.CANCELLED).stream()
                 .map(r -> Map.entry((Long) r[0], new TopMenu((Long) r[1], (String) r[2], (Long) r[3])))
-                .collect(Collectors.groupingBy(Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())))
+                .collect(Collectors.groupingBy(entry -> entry.getKey(),
+                        Collectors.mapping(entry -> entry.getValue(), Collectors.toList())))
                 .forEach((storeId, menus) -> topByStore.put(storeId, menus.stream()
-                        .sorted(Comparator.comparingLong(TopMenu::count).reversed()
-                                .thenComparing(TopMenu::menuId))
+                        .sorted(Comparator.comparingLong((TopMenu menu) -> menu.count()).reversed()
+                                .thenComparing(menu -> menu.menuId()))
                         .limit(3).toList()));
 
         return storeRepository.findByCafeteriaId(cafeteriaId).stream()
-                .sorted(Comparator.comparing(com.campustable.campus_table.entity.Store::getId))
+                .sorted(Comparator.comparing((com.campustable.campus_table.entity.Store store) -> store.getId()))
                 .map(s -> new StoreStat(s.getId(), s.getName(), ordered.getOrDefault(s.getId(), 0L),
                         waiting.getOrDefault(s.getId(), 0L), topByStore.getOrDefault(s.getId(), List.of())))
                 .toList();
@@ -78,7 +78,7 @@ public class AdminService {
         List<Order> orders = orderRepository.findWaitings(cafeteriaId, now.toLocalDate(),
                 List.of(OrderStatus.COOKING, OrderStatus.READY));
         Map<Long, List<OrderItem>> items = orders.isEmpty() ? Map.of()
-                : orderItemRepository.findByOrderIdIn(orders.stream().map(Order::getId).toList()).stream()
+                : orderItemRepository.findByOrderIdIn(orders.stream().map(order -> order.getId()).toList()).stream()
                 .collect(Collectors.groupingBy(i -> i.getOrder().getId()));
         return orders.stream().map(o -> {
             boolean ready = o.getStatus() == OrderStatus.READY || !o.getExpectedReadyAt().isAfter(now);
@@ -106,7 +106,7 @@ public class AdminService {
                 .collect(Collectors.groupingBy(o -> o.getStore().getId(), LinkedHashMap::new, Collectors.toList()));
         return byStore.values().stream()
                 .map(list -> new StoreQueue(list.get(0).getStore().getId(), list.get(0).getStore().getName(),
-                        list.size(), list.stream().map(Order::getWaitingNumber).toList()))
+                        list.size(), list.stream().map(order -> order.getWaitingNumber()).toList()))
                 .toList();
     }
 
@@ -116,7 +116,7 @@ public class AdminService {
         LocalDate day = date == null ? now.toLocalDate() : date;
         List<Order> orders = orderRepository.search(day.atStartOfDay(), day.plusDays(1).atStartOfDay(), storeId, status);
         Map<Long, List<OrderItem>> items = orders.isEmpty() ? Map.of()
-                : orderItemRepository.findByOrderIdIn(orders.stream().map(Order::getId).toList()).stream()
+                : orderItemRepository.findByOrderIdIn(orders.stream().map(order -> order.getId()).toList()).stream()
                 .collect(Collectors.groupingBy(i -> i.getOrder().getId()));
         return orders.stream().map(o -> {
             // 조회 시각 기준 표시 상태(조리 완료 시각이 지났으면 READY)
