@@ -54,4 +54,19 @@ public class Store {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    /**
+     * null이 아닌 값만 변경한다 (부분 수정). 설명/분류는 빈 문자열을 보내면 값이 지워진다(null).
+     * 이미지는 업로드 파일 정리가 필요해서 여기서 다루지 않는다 ({@link #changeImage} + ImageStorageService).
+     */
+    public void patch(String name, String description, String category, Integer avgWaitMinutes) {
+        if (name != null) this.name = name;
+        if (description != null) this.description = blankToNull(description);
+        if (category != null) this.category = blankToNull(category);
+        if (avgWaitMinutes != null) this.avgWaitMinutes = avgWaitMinutes;
+    }
+
+    private static String blankToNull(String value) {
+        return value.isBlank() ? null : value.trim();
+    }
 }

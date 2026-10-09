@@ -26,4 +26,8 @@ public class ArrivalCode {
 
     @Column(nullable = false, length = 10)
     private String code;
+
+    public void changeCode(String code) {
+        this.code = code;
+    }
 }

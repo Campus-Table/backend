@@ -34,4 +34,14 @@ public class Cafeteria {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    /** null이 아닌 값만 변경한다. */
+    public void update(String name, Integer seatCount, Integer diningMinutes,
+                       LocalTime openingTime, LocalTime closingTime) {
+        if (name != null) this.name = name;
+        if (seatCount != null) this.seatCount = seatCount;
+        if (diningMinutes != null) this.diningMinutes = diningMinutes;
+        if (openingTime != null) this.openingTime = openingTime;
+        if (closingTime != null) this.closingTime = closingTime;
+    }
 }

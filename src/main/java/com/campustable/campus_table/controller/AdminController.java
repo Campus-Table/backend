@@ -2,7 +2,10 @@ package com.campustable.campus_table.controller;
 
 import com.campustable.campus_table.dto.AdminDtos.*;
 import com.campustable.campus_table.entity.OrderStatus;
+import com.campustable.campus_table.dto.CafeteriaResponse;
+import com.campustable.campus_table.dto.StoreResponse;
 import com.campustable.campus_table.service.AdminMenuService;
+import com.campustable.campus_table.service.AdminSettingsService;
 import com.campustable.campus_table.service.AdminService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -21,6 +24,23 @@ public class AdminController {
     private final com.campustable.campus_table.service.AdminImageService imageService;
     private final AdminService adminService;
     private final AdminMenuService menuService;
+    private final AdminSettingsService settingsService;
+
+    @PatchMapping("/cafeterias/{cafeteriaId}")
+    public CafeteriaResponse updateCafeteria(@PathVariable Long cafeteriaId,
+                                             @Valid @RequestBody CafeteriaUpdateRequest req) {
+        return settingsService.updateCafeteria(cafeteriaId, req);
+    }
+
+    @PatchMapping("/stores/{storeId}")
+    public StoreResponse updateStore(@PathVariable Long storeId, @Valid @RequestBody StoreUpdateRequest req) {
+        return settingsService.updateStore(storeId, req);
+    }
+
+    @PostMapping("/cafeterias/{cafeteriaId}/arrival-code/regenerate")
+    public ArrivalCodeResponse regenerateArrivalCode(@PathVariable Long cafeteriaId) {
+        return settingsService.regenerateArrivalCode(cafeteriaId);
+    }
 
     @PostMapping(value = "/menus/{menuId}/image", consumes = "multipart/form-data")
     public MenuAdminResponse uploadMenuImage(@PathVariable Long menuId,

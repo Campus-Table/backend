@@ -36,6 +36,23 @@ public final class AuthDtos {
             @NotBlank(message = "비밀번호를 입력해주세요.") String password) {
     }
 
+    public record PasswordResetSendRequest(
+            @NotBlank(message = "학번을 입력해주세요.") @Pattern(regexp = SN_REGEX, message = SN_MESSAGE) String studentNumber) {
+    }
+
+    public record PasswordResetConfirmRequest(
+            @NotBlank(message = "학번을 입력해주세요.") @Pattern(regexp = SN_REGEX, message = SN_MESSAGE) String studentNumber,
+            @NotBlank(message = "인증 코드를 입력해주세요.") String code,
+            @NotBlank(message = "새 비밀번호를 입력해주세요.")
+            @Size(min = 8, max = 50, message = "비밀번호는 8~50자여야 합니다.") String newPassword) {
+    }
+
+    public record PasswordChangeRequest(
+            @NotBlank(message = "현재 비밀번호를 입력해주세요.") String currentPassword,
+            @NotBlank(message = "새 비밀번호를 입력해주세요.")
+            @Size(min = 8, max = 50, message = "비밀번호는 8~50자여야 합니다.") String newPassword) {
+    }
+
     public record MessageResponse(String message) {
     }
 

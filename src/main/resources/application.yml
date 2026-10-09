@@ -32,6 +32,9 @@ spring:
       password: ${REDIS_PASSWORD:}
   session:
     timeout: 30m
+    data:
+      redis:
+        repository-type: indexed # 사용자별 세션 조회(비밀번호 변경 시 다른 기기 로그아웃)에 필요
 
 server:
   servlet:
