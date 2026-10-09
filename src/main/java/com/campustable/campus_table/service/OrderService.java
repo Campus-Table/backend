@@ -137,19 +137,6 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse receive(Long userId, Long orderId) {
-        LocalDateTime now = LocalDateTime.now();
-        lockUser(userId);
-        Order order = findOwned(userId, orderId, true);
-        sync(order, now);
-        if (order.getStatus() != OrderStatus.READY) {
-            throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
-        }
-        order.receive(now, now.plusMinutes(diningMinutes(order)));
-        return toResponses(List.of(order), now).get(0);
-    }
-
-    @Transactional
     public OrderResponse cancel(Long userId, Long orderId) {
         LocalDateTime now = LocalDateTime.now();
         lockUser(userId);
@@ -172,17 +159,16 @@ public class OrderService {
         return switch (order.getStatus()) {
             case PAID -> order.getOrderedAt().toLocalDate().isBefore(today);
             case COOKING -> !order.getExpectedReadyAt().isAfter(now);
-            case READY -> order.getArrivalDate().isBefore(today);
+            case READY -> true; // 이전 방식으로 남은 주문 정리
             default -> false;
         };
     }
 
     /**
      * 시간 경과에 따른 상태 전이를 조회 시점에 반영한다(스케줄러 없음).
-     * PAID(전날 미인증) -> CANCELLED + 환불, COOKING -> READY(예상 시간 경과, 수령 안내 알림),
-     * 전날 COOKING/READY -> RECEIVED(수령으로 간주).
-     * 상태를 바꿔야 할 때만 행을 잠그고 최신 상태를 다시 읽는다 (폴링 요청이 수령 처리 결과를 덮어쓰는 것 방지).
-     * ponytail: 전날 미수령 주문을 수령 처리하는 단순 규칙. 정책이 정해지면 변경.
+     * PAID(전날 미인증) -> CANCELLED + 환불, COOKING -> RECEIVED(예상 시간 경과 = 음식이 나온 것으로 보고
+     * 수령 안내 알림 + 이용 시작; 학식당은 별도 수령 확인이 없음. 이전 방식의 READY 주문도 RECEIVED로 정리).
+     * 상태를 바꿔야 할 때만 행을 잠그고 최신 상태를 다시 읽는다.
      */
     private void sync(Order order, LocalDateTime now) {
         if (!needsSync(order, now)) {
@@ -200,14 +186,11 @@ public class OrderService {
             cancelWithRefund(order, now, true);
             return;
         }
-        if (order.getStatus() == OrderStatus.COOKING && !order.getExpectedReadyAt().isAfter(now)) {
-            order.markReady();
+        LocalDateTime at = order.getExpectedReadyAt();
+        if (order.getStatus() == OrderStatus.COOKING) {
             notificationService.foodReady(order);
         }
-        if (order.getStatus() == OrderStatus.READY && order.getArrivalDate().isBefore(today)) {
-            LocalDateTime at = order.getExpectedReadyAt();
-            order.receive(at, at.plusMinutes(diningMinutes(order)));
-        }
+        order.receive(at, at.plusMinutes(diningMinutes(order)));
     }
 
     private void cancelWithRefund(Order order, LocalDateTime now, boolean auto) {

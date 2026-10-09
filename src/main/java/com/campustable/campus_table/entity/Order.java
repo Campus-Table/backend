@@ -59,10 +59,6 @@ public class Order {
         this.expectedReadyAt = expectedReadyAt;
     }
 
-    public void markReady() {
-        this.status = OrderStatus.READY;
-    }
-
     public void receive(LocalDateTime receivedAt, LocalDateTime leaveAt) {
         this.status = OrderStatus.RECEIVED;
         this.receivedAt = receivedAt;

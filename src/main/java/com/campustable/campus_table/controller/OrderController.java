@@ -50,11 +50,6 @@ public class OrderController {
         return orderService.arrive(user.userId(), orderId, req.code());
     }
 
-    @PostMapping("/{orderId}/receive")
-    public OrderResponse receive(@AuthenticationPrincipal AuthUser user, @PathVariable Long orderId) {
-        return orderService.receive(user.userId(), orderId);
-    }
-
     @PostMapping("/{orderId}/cancel")
     public OrderResponse cancel(@AuthenticationPrincipal AuthUser user, @PathVariable Long orderId) {
         return orderService.cancel(user.userId(), orderId);
