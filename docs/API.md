@@ -42,6 +42,12 @@
 | `UNAUTHORIZED` | 401 | 로그인이 필요합니다. |
 | `FORBIDDEN` | 403 | 접근 권한이 없습니다. |
 | `INTERNAL_ERROR` | 500 | 서버 오류가 발생했습니다. |
+| `INVALID_IMAGE` | 400 | JPEG, PNG, WebP 이미지 파일만 업로드할 수 있습니다. |
+| `IMAGE_TOO_LARGE` | 413 | 이미지는 2MB 이하여야 합니다. |
+| `STORAGE_NOT_CONFIGURED` | 503 | 이미지 저장소가 설정되지 않았습니다. |
+| `STORAGE_FAILED` | 502 | 이미지 저장소 처리에 실패했습니다. |
+| `CLOVA_NOT_CONFIGURED` | 503 | CLOVA API 키가 설정되지 않았습니다. |
+| `ANALYSIS_FAILED` | 502 | 이미지 인원 분석에 실패했습니다. |
 | `INVALID_CREDENTIALS` | 401 | 학번 또는 비밀번호가 올바르지 않습니다. |
 | `DUPLICATE_STUDENT_NUMBER` | 409 | 이미 가입된 학번입니다. |
 | `MAIL_SEND_FAILED` | 500 | 인증 메일 발송에 실패했습니다. |
@@ -760,7 +766,7 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 | A. 가게 정보 확장 | 기존 응답에 필드 추가 | ✅ 구현됨 |
 | B. 가게별 통계 + 대시보드 `todayOrders` | 신규 + 필드 추가 | ✅ 구현됨 |
 | C. 현재 대기 목록 | 신규 | ✅ 구현됨 |
-| D. 시간대별 이용 인원 | 기존 응답에 필드 추가 | ✅ 구현됨 (주문 기반, 스냅샷 반영은 8-1 확정 후) |
+| D. 시간대별 이용 인원 | 기존 응답에 필드 추가 | ✅ 구현됨 (주문 기반, 인원 스냅샷의 영향을 받지 않음) |
 | E. 알림 API | 신규 | ✅ 구현됨 |
 | F. 진행 중 주문 1건 조회 | 신규 | ✅ 구현됨 |
 
@@ -844,7 +850,7 @@ DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` �
 { "hour": 12, "orderCount": 31, "arrivalCount": 28, "receivedCount": 27, "peakPeople": 87, "avgPeople": 62.5 }
 ```
 - `peakPeople`: 그 시간대의 최대 이용 인원 / `avgPeople`: 평균 이용 인원 (소수 첫째 자리).
-- 계산 근거: **현재는 주문 기반**(수령 시각 ~ 이용 종료 시각이 겹치는 인원)입니다. 인원 스냅샷(8-1)이 도입되면 그 시간대 스냅샷의 최대·평균을 우선하도록 확장하며, 시뮬레이션 데이터도 스냅샷으로 들어가므로 같은 응답으로 나옵니다.
+- 계산 근거: **주문 기반**(수령 시각 ~ 이용 종료 시각이 겹치는 인원)입니다. `peakPeople`·`avgPeople`을 포함한 이 API의 모든 필드는 CLOVA·SIMULATION·MANUAL 인원 스냅샷의 영향을 받지 않습니다. 스냅샷 기록은 8-1의 `occupancy/history`로 조회합니다. 현재 인원 status·대시보드와 시간대별 이용 현황은 계산 근거가 다릅니다.
 - 항상 0~23시 24개 항목이며, 화면에서는 필요한 시간대(예: 09~16시)만 사용합니다.
 
 #### E. 알림 API — `/api/notifications` (로그인)
@@ -953,6 +959,45 @@ ADMIN 세션 쿠키가 필요합니다.
 - `POST /api/admin/stores/{storeId}/image`
 
 `multipart/form-data`의 `file` 필드로 파일 한 개를 전송합니다. JPEG/PNG/WebP, 최대 2MiB(2,097,152바이트), 최대 2천만 픽셀입니다. 확장자와 요청 Content-Type 대신 실제 파일을 디코딩해 검사합니다. 성공 시 200과 수정된 메뉴/가게 정보(`imageUrl` 포함)를 반환합니다.
+
+### 이미지 업로드 성공 응답 (200 OK)
+
+메뉴 업로드는 `MenuAdminResponse`를 반환합니다.
+
+```json
+{
+  "id": 10,
+  "storeId": 2,
+  "name": "김치찌개",
+  "price": 5500,
+  "imageUrl": "https://images.example.com/images/menus/uuid.jpg",
+  "available": true
+}
+```
+
+가게 업로드는 `StoreAdminResponse`를 반환합니다.
+
+```json
+{
+  "id": 2,
+  "cafeteriaId": 1,
+  "name": "한식",
+  "description": "오늘의 식사",
+  "category": "한식",
+  "avgWaitMinutes": 3,
+  "imageUrl": "https://images.example.com/images/stores/uuid.png"
+}
+```
+
+| 응답 | 필드 |
+|---|---|
+| 메뉴 이미지 업로드 | id, storeId, name, price, imageUrl, available |
+| 가게 이미지 업로드·PUT 수정 | id, cafeteriaId, name, description, category, avgWaitMinutes, imageUrl |
+| 가게 상세 조회·PATCH 수정 | 위 가게 필드 + minPrice, representativeMenuName |
+
+가게 이미지 업로드 응답에는 `minPrice`·`representativeMenuName`이 없습니다. `description`·`category`는 null일 수 있습니다. 예시 이미지 URL은 설명용이며 실제 URL은 저장소 설정에 따라 달라집니다.
+
+### 프론트 업로드 예시
 
 ```js
 const body = new FormData();

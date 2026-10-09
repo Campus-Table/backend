@@ -150,7 +150,7 @@ public class AdminService {
             count(arrived, o.getArrivedAt(), from, to);
             count(received, o.getReceivedAt(), from, to);
         }
-        // 시간대별 이용 인원은 이용 구간(수령 ~ 이용 종료)의 겹침으로 계산 (인원 스냅샷 방식이 확정되면 스냅샷 우선으로 확장)
+        // 시간대별 이용 인원은 주문의 이용 구간(수령 ~ 이용 종료)의 겹침으로 계산하며 인원 스냅샷을 사용하지 않는다.
         var people = HourlyOccupancy.compute(
                 orderRepository.findUsageIntervals(cafeteriaId, from, to).stream()
                         .map(o -> new HourlyOccupancy.Interval(o.getReceivedAt(), o.getLeaveAt())).toList(), day);
