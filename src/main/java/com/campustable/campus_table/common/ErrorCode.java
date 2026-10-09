@@ -34,6 +34,9 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "현재 주문 상태에서는 처리할 수 없습니다."),
     INVALID_ARRIVAL_CODE(HttpStatus.BAD_REQUEST, "현장 번호가 올바르지 않습니다."),
 
+    // notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 알림을 찾을 수 없습니다."),
+
     // mileage
     INSUFFICIENT_MILEAGE(HttpStatus.BAD_REQUEST, "마일리지가 부족합니다."),
     PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제 승인에 실패했습니다.");

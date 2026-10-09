@@ -1,5 +1,6 @@
 package com.campustable.campus_table.dto;
 
+import com.campustable.campus_table.common.CongestionLevel;
 import com.campustable.campus_table.entity.Menu;
 import com.campustable.campus_table.entity.OrderStatus;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +33,28 @@ public final class AdminDtos {
                                  long orderCount, long totalQuantity) {
     }
 
-    public record HourlyUsage(int hour, int orderCount, int arrivalCount, int receivedCount) {
+    public record HourlyUsage(int hour, int orderCount, int arrivalCount, int receivedCount,
+                              int peakPeople, double avgPeople) {
+    }
+
+    /** 대시보드: 이용·대기 인원, 이용률, 혼잡도 + 오늘 주문 수(취소 제외) */
+    public record DashboardResponse(int currentPeople, int waitingPeople, int seatCount, double usageRate,
+                                    CongestionLevel congestionLevel, long todayOrders) {
+    }
+
+    public record TopMenu(Long menuId, String menuName, long count) {
+    }
+
+    public record StoreStat(Long storeId, String storeName, long todayOrders, long waitingCount,
+                            List<TopMenu> topMenus) {
+    }
+
+    public record WaitingItem(Long menuId, String menuName, int quantity) {
+    }
+
+    public record WaitingOrder(Long orderId, int waitingNumber, Long storeId, String storeName,
+                               OrderStatus status, List<WaitingItem> items, LocalDateTime arrivedAt,
+                               LocalDateTime expectedReadyAt, long remainingSeconds) {
     }
 
     public record MenuRequest(

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +29,14 @@ public class OrderController {
     @GetMapping("/me")
     public List<OrderResponse> myOrders(@AuthenticationPrincipal AuthUser user) {
         return orderService.myOrders(user.userId());
+    }
+
+    /** 진행 중인 주문이 있으면 200, 없으면 204. */
+    @GetMapping("/me/current")
+    public ResponseEntity<OrderResponse> current(@AuthenticationPrincipal AuthUser user) {
+        return orderService.current(user.userId())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{orderId}")

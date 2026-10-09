@@ -57,7 +57,7 @@
 | `INVALID_ARRIVAL_CODE` | 400 | 현장 번호가 올바르지 않습니다. |
 | `INSUFFICIENT_MILEAGE` | 400 | 마일리지가 부족합니다. |
 | `PAYMENT_FAILED` | 400 | 결제 승인에 실패했습니다. |
-| 🕓 `NOTIFICATION_NOT_FOUND` | 404 | 해당 알림을 찾을 수 없습니다. (알림 API 구현 시 추가) |
+| `NOTIFICATION_NOT_FOUND` | 404 | 해당 알림을 찾을 수 없습니다. |
 
 ## 2. API 목록
 
@@ -71,30 +71,30 @@
 | User | GET | `/api/users/me` | 로그인 | 내 정보 |
 | Cafeteria | GET | `/api/cafeterias` | 로그인 | 학식당 목록 |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}` | 로그인 | 학식당 상세 |
-| Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/stores` | 로그인 | 학식당의 가게 목록 (🕓 필드 확장: 8-0 A) |
+| Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/stores` | 로그인 | 학식당의 가게 목록 (필드 확장: 8-0 A) |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/status` | 로그인 | 혼잡도(이용/대기 인원) |
-| Store | GET | `/api/stores/{storeId}` | 로그인 | 가게 상세 (🕓 필드 확장: 8-0 A) |
+| Store | GET | `/api/stores/{storeId}` | 로그인 | 가게 상세 (필드 확장: 8-0 A) |
 | Store | GET | `/api/stores/{storeId}/menus` | 로그인 | 가게 메뉴 목록 |
 | Mileage | GET | `/api/mileage` | 로그인 | 마일리지 잔액 |
 | Mileage | GET | `/api/mileage/transactions` | 로그인 | 마일리지 내역 |
 | Mileage | POST | `/api/mileage/charge/confirm` | 로그인 | 결제 승인 후 충전 |
 | Order | POST | `/api/orders` | 로그인 | 선주문 + 마일리지 결제 |
 | Order | GET | `/api/orders/me` | 로그인 | 내 주문 목록 |
-| Order | GET | `/api/orders/me/current` | 로그인 | 🕓 진행 중인 내 주문 1건 (8-0 F) |
+| Order | GET | `/api/orders/me/current` | 로그인 | 진행 중인 내 주문 1건 (8-0 F) |
 | Order | GET | `/api/orders/{orderId}` | 로그인 | 내 주문 상세 |
 | Order | POST | `/api/orders/{orderId}/arrival` | 로그인 | 현장 번호 도착 인증 |
 | Order | POST | `/api/orders/{orderId}/receive` | 로그인 | 음식 수령 |
 | Order | POST | `/api/orders/{orderId}/cancel` | 로그인 | 주문 취소(도착 인증 전) |
-| Notification | GET | `/api/notifications` | 로그인 | 🕓 내 알림 목록 (8-0 E) |
-| Notification | GET | `/api/notifications/unread-count` | 로그인 | 🕓 읽지 않은 알림 수 (8-0 E) |
-| Notification | PATCH | `/api/notifications/{notificationId}/read` | 로그인 | 🕓 알림 읽음 처리 (8-0 E) |
-| Notification | PATCH | `/api/notifications/read-all` | 로그인 | 🕓 알림 모두 읽음 (8-0 E) |
+| Notification | GET | `/api/notifications` | 로그인 | 내 알림 목록 (8-0 E) |
+| Notification | GET | `/api/notifications/unread-count` | 로그인 | 읽지 않은 알림 수 (8-0 E) |
+| Notification | PATCH | `/api/notifications/{notificationId}/read` | 로그인 | 알림 읽음 처리 (8-0 E) |
+| Notification | PATCH | `/api/notifications/read-all` | 로그인 | 알림 모두 읽음 (8-0 E) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/arrival-code` | ADMIN | 오늘의 현장 번호 |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 (🕓 `todayOrders` 추가: 8-0 B) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 (`todayOrders` 추가: 8-0 B) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/queues` | ADMIN | 가게별 현재 대기번호 |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/store-stats` | ADMIN | 🕓 가게별 오늘 주문·대기·인기 메뉴 (8-0 B) |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/waitings` | ADMIN | 🕓 현재 대기 목록 (8-0 C) |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/usage/hourly` | ADMIN | 시간대별 이용 현황 (🕓 `peakPeople`/`avgPeople` 추가: 8-0 D) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/store-stats` | ADMIN | 가게별 오늘 주문·대기·인기 메뉴 (8-0 B) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/waitings` | ADMIN | 현재 대기 목록 (8-0 C) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/usage/hourly` | ADMIN | 시간대별 이용 현황 (`peakPeople`/`avgPeople` 추가: 8-0 D) |
 | Admin | GET | `/api/admin/orders` | ADMIN | 주문 현황 |
 | Admin | GET | `/api/admin/orders/menu-counts` | ADMIN | 메뉴별 주문 인원 |
 | Admin | POST | `/api/admin/stores/{storeId}/menus` | ADMIN | 메뉴 추가 |
@@ -222,11 +222,19 @@ Response — `200 OK`
 ### GET `/api/cafeterias/{cafeteriaId}/stores` — 가게 목록
 ```json
 [
-  { "id": 1, "cafeteriaId": 1, "name": "Korean", "avgWaitMinutes": 2, "imageUrl": null },
-  { "id": 2, "cafeteriaId": 1, "name": "Noodle", "avgWaitMinutes": 3, "imageUrl": null }
+  {
+    "id": 1, "cafeteriaId": 1, "name": "Korean", "description": "든든한 한식", "category": "한식",
+    "avgWaitMinutes": 2, "imageUrl": null, "minPrice": 5500, "representativeMenuName": "Jeyuk"
+  },
+  {
+    "id": 2, "cafeteriaId": 1, "name": "Noodle", "description": null, "category": null,
+    "avgWaitMinutes": 3, "imageUrl": null, "minPrice": 4500, "representativeMenuName": "Ramen"
+  }
 ]
 ```
 - `avgWaitMinutes`: 가게의 1인분 평균 대기시간(분). 예상 대기시간 계산에 사용됩니다.
+- `description`, `category`: 가게 소개와 분류. 값이 없으면 `null`입니다.
+- `minPrice`: **판매 중인** 메뉴의 최저가 (판매 중인 메뉴가 없으면 `null`) / `representativeMenuName`: 가게의 첫 번째 메뉴(등록 순) 이름. 홈 화면 가게 카드용이라 메뉴 API를 따로 호출할 필요가 없습니다.
 - 없는 식당: `404 CAFETERIA_NOT_FOUND`
 
 ### GET `/api/cafeterias/{cafeteriaId}/status` — 혼잡도
@@ -251,9 +259,12 @@ Response — `200 OK`
 
 ### GET `/api/stores/{storeId}` — 가게 상세
 ```json
-{ "id": 1, "cafeteriaId": 1, "name": "Korean", "avgWaitMinutes": 2, "imageUrl": null }
+{
+  "id": 1, "cafeteriaId": 1, "name": "Korean", "description": "든든한 한식", "category": "한식",
+  "avgWaitMinutes": 2, "imageUrl": null, "minPrice": 5500, "representativeMenuName": "Jeyuk"
+}
 ```
-없으면 `404 STORE_NOT_FOUND`.
+필드 설명은 가게 목록과 같습니다. 없으면 `404 STORE_NOT_FOUND`.
 
 ### GET `/api/stores/{storeId}/menus` — 가게 메뉴 목록
 ```json
@@ -473,10 +484,11 @@ Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "CANC
   "waitingPeople": 1,
   "seatCount": 100,
   "usageRate": 1.0,
-  "congestionLevel": "RELAXED"
+  "congestionLevel": "RELAXED",
+  "todayOrders": 124
 }
 ```
-계산 규칙은 `GET /api/cafeterias/{id}/status`와 같습니다.
+계산 규칙은 `GET /api/cafeterias/{id}/status`와 같습니다. `todayOrders`는 오늘 주문한 수(전 가게 합계, **취소 제외**)입니다. 없는 식당은 `404 CAFETERIA_NOT_FOUND`.
 
 ### GET `/api/admin/cafeterias/{cafeteriaId}/queues` — 가게별 대기번호 현황
 ```json
@@ -490,11 +502,12 @@ Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "CANC
 Query: `date`(선택)
 ```json
 [
-  { "hour": 0, "orderCount": 0, "arrivalCount": 0, "receivedCount": 0 },
-  { "hour": 12, "orderCount": 3, "arrivalCount": 2, "receivedCount": 1 }
+  { "hour": 0, "orderCount": 0, "arrivalCount": 0, "receivedCount": 0, "peakPeople": 0, "avgPeople": 0.0 },
+  { "hour": 12, "orderCount": 31, "arrivalCount": 28, "receivedCount": 27, "peakPeople": 87, "avgPeople": 62.5 }
 ]
 ```
 - 항상 0~23시 24개 항목. 각 시간대에 주문한 수 / 도착 인증한 수 / 수령한 수입니다.
+- `peakPeople`: 그 시간대의 최대 이용 인원, `avgPeople`: 평균 이용 인원(소수 첫째 자리). 이용 구간(수령 시각 ~ 이용 종료 시각)이 겹치는 주문으로 계산합니다. 같은 시각에 끝나고 시작하는 구간은 겹치지 않는 것으로 봅니다. (자세한 설명은 8-0 D)
 
 ### GET `/api/admin/orders` — 주문 현황
 Query: `date`(선택), `storeId`(선택), `status`(선택: `PAID` `COOKING` `READY` `RECEIVED` `CANCELLED`)
@@ -563,9 +576,9 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 
 ## 8. 🕓 아직 없는 기능 (명세 대상)
 
-회의록 기준으로 아직 구현되지 않았거나 확정되지 않은 항목입니다. 구현 전에 이 문서에 먼저 추가합니다.
+회의록 기준으로 아직 구현되지 않았거나 확정되지 않은 항목입니다. 구현 전에 이 문서에 먼저 추가합니다. (8-0은 구현이 끝나 상세 명세로 남겨둔 항목입니다.)
 
-- **프론트엔드 코드 분석으로 확인된 추가 API** (알림, 가게 정보 확장, 관리자 통계 등) → 아래 8-0 참고
+- ✅ **프론트엔드 코드 분석으로 추가된 API** (알림, 가게 정보 확장, 관리자 통계 등) — 구현 완료, 아래 8-0 참고
 - 메뉴 이미지 업로드 (NAVER Cloud Object Storage)
 - **CCTV 이미지 기반 인원 추정 (CLOVA)** 및 시뮬레이션 데이터 주입 → 아래 8-1 참고
 - 혼잡도 구간 확정
@@ -573,19 +586,19 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 - 가게 정보(평균 대기시간 등) 관리자 수정
 - 학식당 현장 번호의 관리자 재발급
 
-### 8-0. 🕓 프론트엔드 연동에서 확인된 추가 API
+### 8-0. ✅ 프론트엔드 연동에서 추가된 API (구현 완료)
 
 프론트엔드(`frontend/`, React) 화면 코드를 분석해, 화면이 필요로 하지만 현재 API에 없는 것을 정리했습니다. (프론트는 아직 목 데이터를 사용 중)
 기본 원칙은 **기존 응답은 그대로 두고 필드/엔드포인트를 추가**하는 것이라, 이미 연동한 화면이 깨지지 않습니다.
 
 | 항목 | 종류 | 상태 |
 |---|---|---|
-| A. 가게 정보 확장 | 기존 응답에 필드 추가 | 확정 (담당: 식당/가게 도메인과 협의) |
-| B. 가게별 통계 + 대시보드 `todayOrders` | 신규 + 필드 추가 | 확정 |
-| C. 현재 대기 목록 | 신규 | 확정 |
-| D. 시간대별 이용 인원 | 기존 응답에 필드 추가 | 확정 (스냅샷 방식은 8-1 확정 후) |
-| E. 알림 API | 신규 | 확정 |
-| F. 진행 중 주문 1건 조회 | 신규 | 확정 |
+| A. 가게 정보 확장 | 기존 응답에 필드 추가 | ✅ 구현됨 |
+| B. 가게별 통계 + 대시보드 `todayOrders` | 신규 + 필드 추가 | ✅ 구현됨 |
+| C. 현재 대기 목록 | 신규 | ✅ 구현됨 |
+| D. 시간대별 이용 인원 | 기존 응답에 필드 추가 | ✅ 구현됨 (주문 기반, 스냅샷 반영은 8-1 확정 후) |
+| E. 알림 API | 신규 | ✅ 구현됨 |
+| F. 진행 중 주문 1건 조회 | 신규 | ✅ 구현됨 |
 
 **제외한 것**: 대기번호는 지금처럼 **날마다 1번부터 가게별로 초기화되는 숫자**(`waitingNumber: 13`)를 그대로 씁니다. `A-013` 같은 표기는 프론트에서 필요하면 포맷만 하면 됩니다 (예: `String(n).padStart(3, '0')`).
 
@@ -667,7 +680,7 @@ DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` �
 { "hour": 12, "orderCount": 31, "arrivalCount": 28, "receivedCount": 27, "peakPeople": 87, "avgPeople": 62.5 }
 ```
 - `peakPeople`: 그 시간대의 최대 이용 인원 / `avgPeople`: 평균 이용 인원 (소수 첫째 자리).
-- 계산 근거: 인원 스냅샷(8-1)이 있으면 그 시간대 스냅샷의 최대·평균, 없으면 주문 기반(수령 시각 ~ 이용 종료 시각이 겹치는 인원). 시뮬레이션 데이터도 스냅샷으로 들어가므로 같은 응답으로 나옵니다.
+- 계산 근거: **현재는 주문 기반**(수령 시각 ~ 이용 종료 시각이 겹치는 인원)입니다. 인원 스냅샷(8-1)이 도입되면 그 시간대 스냅샷의 최대·평균을 우선하도록 확장하며, 시뮬레이션 데이터도 스냅샷으로 들어가므로 같은 응답으로 나옵니다.
 - 항상 0~23시 24개 항목이며, 화면에서는 필요한 시간대(예: 09~16시)만 사용합니다.
 
 #### E. 알림 API — `/api/notifications` (로그인)
