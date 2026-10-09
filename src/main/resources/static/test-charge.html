@@ -1,0 +1,31 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>테스트 마일리지 충전</title>
+<style>body{font-family:system-ui;max-width:520px;margin:60px auto;padding:20px}label{display:block;margin:16px 0}input,button{padding:12px;font-size:16px}#result{white-space:pre-wrap}</style>
+<h1>마일리지 테스트 충전</h1><p>가입 잔액은 0P입니다. 토스 테스트 결제 완료 후 마일리지가 충전됩니다.</p>
+<form id="login"><label>학번 <input name="studentNumber" required pattern="[0-9]{8}"></label><label>비밀번호 <input name="password" type="password" required></label><button>로그인</button></form>
+<label>충전 금액 <input id="amount" type="number" min="1000" max="100000" value="10000"></label><button id="charge">토스 테스트 결제창 열기</button><div id="payment-method"></div><div id="agreement"></div><p id="result" role="status"></p>
+<script src="https://js.tosspayments.com/v2/standard"></script>
+<script>
+const result=document.querySelector('#result');
+async function api(path,body){const res=await fetch(path,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Error(data.message||'요청 실패');return data;}
+document.querySelector('#login').onsubmit=async e=>{e.preventDefault();try{await api('/api/auth/login',Object.fromEntries(new FormData(e.target)));result.textContent='로그인되었습니다.';e.target.password.value='';await confirm();}catch(error){result.textContent=error.message;}};
+let widgetCheckout=null;
+document.querySelector('#charge').onclick=async e=>{e.target.disabled=true;try{
+  const url=location.origin+'/test-charge.html';
+  if(widgetCheckout){await widgetCheckout.widgets.requestPayment({orderId:widgetCheckout.data.orderId,orderName:'학식당 마일리지 테스트 충전',successUrl:url,failUrl:url});return;}
+  const amount=Number(document.querySelector('#amount').value);if(!Number.isInteger(amount)||amount<1000||amount>100000)throw Error('1,000~100,000원을 입력해주세요.');
+  const data=await api('/api/mileage/charge/prepare',{amount});
+  const toss=TossPayments(data.clientKey);
+  if(data.clientKey.startsWith('test_gck_')){
+    const widgets=toss.widgets({customerKey:data.customerKey});
+    await widgets.setAmount({currency:'KRW',value:data.amount});
+    await widgets.renderPaymentMethods({selector:'#payment-method',variantKey:'DEFAULT'});
+    await widgets.renderAgreement({selector:'#agreement',variantKey:'AGREEMENT'});
+    widgetCheckout={widgets,data};document.querySelector('#amount').disabled=true;
+    e.target.textContent='선택한 수단으로 테스트 결제';result.textContent='결제 수단과 약관을 확인하고 결제 버튼을 다시 눌러주세요.';
+  }else{await toss.payment({customerKey:data.customerKey}).requestPayment({method:'CARD',amount:{currency:'KRW',value:data.amount},orderId:data.orderId,orderName:'학식당 마일리지 테스트 충전',successUrl:url,failUrl:url});}
+}catch(error){result.textContent=error.message;}finally{e.target.disabled=false;}};
+let confirming=false;
+async function confirm(){const query=new URLSearchParams(location.search);if(query.has('code')){result.textContent='결제가 완료되지 않았습니다: '+(query.get('message')||query.get('code'));return;}if(!query.has('paymentKey')||confirming)return;confirming=true;try{const data=await api('/api/mileage/charge/confirm',{paymentKey:query.get('paymentKey'),orderId:query.get('orderId'),amount:Number(query.get('amount'))});history.replaceState(null,'',location.pathname);result.textContent='충전 완료. 잔액: '+data.balance+'P';}catch(error){result.textContent=error.message+' 로그인 후 다시 확인해주세요.';}finally{confirming=false;}}
+confirm();
+</script></html>

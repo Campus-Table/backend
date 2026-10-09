@@ -15,6 +15,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+    @Query("select o.id from Order o where o.status = com.campustable.campus_table.entity.OrderStatus.PAID "
+            + "and o.orderedAt <= :cutoff order by o.id")
+    List<Long> findExpiredPaidIds(@Param("cutoff") LocalDateTime cutoff,
+                                 org.springframework.data.domain.Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from Order o where o.id = :id")
     Optional<Order> findByIdForUpdate(@Param("id") Long id);

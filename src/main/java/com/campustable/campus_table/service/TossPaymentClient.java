@@ -17,8 +17,16 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class TossPaymentClient {
 
-    private final RestClient client = RestClient.create("https://api.tosspayments.com");
+    private final RestClient client = RestClient.builder().baseUrl("https://api.tosspayments.com")
+            .requestFactory(requestFactory()).build();
     private final String authHeader;
+
+    private static org.springframework.http.client.JdkClientHttpRequestFactory requestFactory() {
+        var factory = new org.springframework.http.client.JdkClientHttpRequestFactory(
+                java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(10)).build());
+        factory.setReadTimeout(java.time.Duration.ofSeconds(30));
+        return factory;
+    }
 
     public TossPaymentClient(@Value("${app.toss.secret-key:}") String secretKey) {
         this.authHeader = "Basic " + Base64.getEncoder()
@@ -29,6 +37,7 @@ public class TossPaymentClient {
         try {
             client.post().uri("/v1/payments/confirm")
                     .header("Authorization", authHeader)
+                    .header("Idempotency-Key", orderId)
                     .body(Map.of("paymentKey", paymentKey, "orderId", orderId, "amount", amount))
                     .retrieve()
                     .toBodilessEntity();
