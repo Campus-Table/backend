@@ -1,0 +1,20 @@
+[Unit]
+Description=Campus Table backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=campus
+Group=campus
+WorkingDirectory=/opt/campus-table
+# 값은 /etc/campus-table.env 에서 읽는다(따옴표 없이 KEY=value). 예시는 deploy/campus-table.env.example
+EnvironmentFile=/etc/campus-table.env
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/campus-table/app.jar
+Restart=always
+RestartSec=5
+# JVM이 SIGTERM으로 종료되면 143을 반환한다(정상 종료로 취급)
+SuccessExitStatus=143
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
