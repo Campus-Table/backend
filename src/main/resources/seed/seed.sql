@@ -1,5 +1,6 @@
 -- 학식당 초기 데이터(가게 9개, 메뉴 93개). 프론트 목 데이터(mockData.js) 기준이며 이미지는 비어 있습니다.
 -- 같은 내용이 있으면 건너뛰므로 여러 번 실행해도 안전합니다. 수동 실행: mysql ... campus_table < seed.sql
+-- 가게별 동시 조리 수(cooking_capacity): 기본 3, 51장국밥 4. 이미 만든 DB는 UPDATE stores SET cooking_capacity = 3 로 맞춥니다.
 -- 기동 시 자동 입력은 SEED_ENABLED=true 이고 식당이 하나도 없을 때만 동작합니다.
 SET NAMES utf8mb4;
 INSERT INTO cafeterias (name, seat_count, dining_minutes, opening_time, closing_time, created_at)
@@ -8,8 +9,8 @@ WHERE NOT EXISTS (SELECT 1 FROM cafeterias WHERE name = '학식당');
 SET @cid = (SELECT MIN(id) FROM cafeterias WHERE name = '학식당');
 
 -- 51장국밥
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '51장국밥', '든든한 국밥과 한식 메뉴', '한식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '51장국밥', '든든한 국밥과 한식 메뉴', '한식', 3, 4, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '51장국밥');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -35,8 +36,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '51장국밥'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 가오슝
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '가오슝', '다양한 덮밥과 면 요리', '아시안', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '가오슝', '다양한 덮밥과 면 요리', '아시안', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '가오슝');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -54,8 +55,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '가오슝'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 값찌개
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '값찌개', '따뜻하고 든든한 찌개', '한식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '값찌개', '따뜻하고 든든한 찌개', '한식', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '값찌개');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -73,8 +74,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '값찌개'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 경성카츠
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '경성카츠', '바삭한 한 끼', '돈카츠', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '경성카츠', '바삭한 한 끼', '돈카츠', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '경성카츠');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -90,8 +91,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '경성카츠'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 광뚝
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '광뚝', '불고기와 뚝배기 한식', '한식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '광뚝', '불고기와 뚝배기 한식', '한식', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '광뚝');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -113,8 +114,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '광뚝'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 도쿄야
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '도쿄야', '오므라이스와 함박스테이크', '일식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '도쿄야', '오므라이스와 함박스테이크', '일식', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '도쿄야');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -132,8 +133,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '도쿄야'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 바비든든
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '바비든든', '든든한 덮밥 한 끼', '덮밥', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '바비든든', '든든한 덮밥 한 끼', '덮밥', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '바비든든');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -151,8 +152,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '바비든든'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 비비고고
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '비비고고', '카레와 비빔밥', '한식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '비비고고', '카레와 비빔밥', '한식', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '비비고고');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
@@ -168,8 +169,8 @@ WHERE s.cafeteria_id = @cid AND s.name = '비비고고'
 AND NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id = s.id AND m.name = v.name);
 
 -- 폭풍분식
-INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, created_at)
-SELECT @cid, '폭풍분식', '라면, 김밥, 떡볶이 분식', '분식', 3, NOW() FROM DUAL
+INSERT INTO stores (cafeteria_id, name, description, category, avg_wait_minutes, cooking_capacity, created_at)
+SELECT @cid, '폭풍분식', '라면, 김밥, 떡볶이 분식', '분식', 3, 3, NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM stores WHERE cafeteria_id = @cid AND name = '폭풍분식');
 INSERT INTO menus (store_id, name, price, is_available, created_at)
 SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (

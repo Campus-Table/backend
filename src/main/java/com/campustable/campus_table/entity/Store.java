@@ -34,6 +34,11 @@ public class Store {
     @Builder.Default
     private int avgWaitMinutes = 2;
 
+    /** 동시에 조리할 수 있는 주문 수. 예상 대기시간 계산에만 쓰며 관리자 API에는 노출하지 않는다(시드/DB로 설정). */
+    @Column(nullable = false, columnDefinition = "int not null default 1")
+    @Builder.Default
+    private int cookingCapacity = 1;
+
     @Column(length = 500)
     private String imageUrl;
 
