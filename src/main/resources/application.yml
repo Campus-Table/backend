@@ -44,6 +44,12 @@ server:
         same-site: lax
 
 app:
+  clova:
+    api-key: ${CLOVA_API_KEY:}
+    endpoint: ${CLOVA_ENDPOINT:https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-005}
+    timeout-seconds: ${CLOVA_TIMEOUT_SECONDS:60}
+  occupancy:
+    snapshot-max-age-seconds: ${OCCUPANCY_SNAPSHOT_MAX_AGE_SECONDS:300}
   object-storage:
     enabled: ${OBJECT_STORAGE_ENABLED:false}
     endpoint: ${OBJECT_STORAGE_ENDPOINT:https://kr.object.ncloudstorage.com}

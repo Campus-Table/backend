@@ -913,63 +913,28 @@ Request body 없음. Response — `200 OK` + 읽음 처리된 알림. 이미 읽
 | `notifications` | 신규 테이블 |
 | `usage_snapshots` | `source` 컬럼 추가 (8-1) |
 
-### 8-1. 🕓 이미지 기반 인원 추정 (제안 — 미확정)
+### 8-1. 이미지 기반 인원 추정 및 시뮬레이션
 
-> 이 절은 **구현 전 초안**입니다. 하단의 "정해야 할 것"이 확정되면 확정 사항으로 옮깁니다.
+ADMIN 세션 인증이 필요합니다. 분석 결과와 직접 입력 값은 같은 `usage_snapshots` 저장 경로를 사용하며 출처는 CLOVA / SIMULATION / MANUAL입니다.
 
-**목적**: 학식당 CCTV 이미지에서 사람 수를 세어 현재 이용 인원을 얻는다. 지금은 CCTV가 없으므로 시뮬레이션(더미) 데이터를 쓰되, **실제 이미지 분석 경로를 먼저 만들어 두고 더미 데이터도 같은 경로로 넣는다.** 나중에 카메라만 연결하면 그대로 실사용으로 전환된다.
+- `POST /api/admin/cafeterias/{id}/occupancy/analyze`: multipart `image` (JPEG/PNG, 2MiB 이하). HCX-005로 식사 공간의 인원을 추정합니다. 긴 변 2240px 이하, 짧은 변 4px 이상, 가로세로 비율 5:1 이하. 이미지 원본은 DB/Object Storage에 보관하지 않습니다.
+- `POST /api/admin/cafeterias/{id}/occupancy`: JSON `{"currentPeople":42,"recordedAt":"2026-10-09T12:00:00","source":"MANUAL"}`. source 생략 시 SIMULATION, CLOVA 직접 지정 불가. recordedAt 생략 시 현재 한국 시각, 미래 시각 불가. 인원은 정수 0~10000.
+- `POST /api/admin/cafeterias/{id}/occupancy/simulation`: `{"snapshots":[{"currentPeople":10,"recordedAt":"2026-10-09T11:00:00"},{"currentPeople":40,"recordedAt":"2026-10-09T12:00:00"},{"currentPeople":15,"recordedAt":"2026-10-09T13:00:00"}]}`. 최대 500개, 모두 SIMULATION으로 저장, 오류가 있으면 전체 롤백. 과거 입장·퇴장 시나리오를 시각별 인원으로 입력합니다. 자동 주기 생성은 없습니다.
+- `GET /api/admin/cafeterias/{id}/occupancy/history?date=2026-10-09`: 한국 날짜 기준 하루 기록을 시각·ID 순으로 조회. date 생략 시 오늘.
 
-```text
-[CCTV 수집기 / 시뮬레이터] ─ 이미지 또는 인원 수 ─▶ 서버 ─▶ (이미지면) 인원 추정 모듈(CLOVA) ─▶ 인원 스냅샷 저장
-                                                                                          │
-                                       GET /api/cafeterias/{id}/status ◀─ 최신 스냅샷 ─────┘
-```
+저장 응답: `{"snapshotId":31,"cafeteriaId":1,"peopleCount":42,"source":"CLOVA","recordedAt":"2026-10-09T12:00:00"}`. 시뮬레이션 일괄 응답과 history는 이 객체의 배열입니다.
 
-구성 요소
-- **인원 추정 모듈**: `이미지 → 사람 수`를 반환하는 하나의 인터페이스. 구현체(CLOVA 호출)를 바꿔 끼울 수 있게 분리합니다.
-- **스냅샷(`usage_snapshots`)**: 시각별 인원 기록. `source` 컬럼(`CLOVA` / `SIMULATION` / `MANUAL`)을 추가해 값의 출처를 구분합니다.
-- **시뮬레이터**: 시간대별 입장·퇴장 시나리오를 만들어, 이미지 분석과 **같은 저장 경로**로 스냅샷을 넣습니다.
+`GET /api/cafeterias/{id}/status` 및 관리자 현재 인원 대시보드는 최신 스냅샷을 300초 동안 사용하고, 없거나 오래되면 기존 주문 기반 인원으로 대체합니다. 같은 시각이면 ID가 큰 기록을 사용하고 미래 기록은 사용하지 않습니다. 대기 인원은 기존 주문 기반을 유지합니다. 이용률과 혼잡도 계산·응답 형식은 유지됩니다. 과거 시뮬레이션은 현재 인원을 덮어쓰지 않습니다(유효기간 밖일 때). 기존 시간대별 주문 통계 API는 그대로이며, 스냅샷 기록은 history로 조회합니다.
 
-#### POST `/api/admin/cafeterias/{cafeteriaId}/occupancy/analyze` — 이미지로 인원 추정
-`multipart/form-data`, 파일 필드명 `image` (JPEG/PNG)
+설정: `.env`의 `CLOVA_API_KEY`에 발급받은 CLOVA Studio API 키를 입력하고 서버를 재시작합니다. 별도 플레이그라운드 작업 ID 없이 v3 HCX-005 API에 시스템 프롬프트와 Base64 이미지를 함께 전송합니다. `CLOVA_ENDPOINT`, `CLOVA_TIMEOUT_SECONDS`(기본 60초), `OCCUPANCY_SNAPSHOT_MAX_AGE_SECONDS`(기본 300초)로 조정합니다. 키·이미지·원시 응답은 로그에 기록하지 않습니다.
 
-Response — `200 OK` (예시)
-```json
-{
-  "snapshotId": 31,
-  "cafeteriaId": 1,
-  "peopleCount": 42,
-  "source": "CLOVA",
-  "recordedAt": "2026-10-07T12:10:00"
-}
-```
-| 에러 | 상황 |
-|---|---|
-| `VALIDATION_FAILED` | 이미지가 없거나 형식/용량 초과 |
-| `ANALYSIS_FAILED` (신규) | CLOVA 호출 실패 또는 결과 해석 실패 |
+오류: 키 미설정 503 CLOVA_NOT_CONFIGURED, 호출 실패/타임아웃/잘못된 JSON/분석 불가능/잘린 응답 502 ANALYSIS_FAILED. 실패하면 스냅샷을 저장하지 않으며 인원을 0으로 덮어쓰지 않습니다. 잘못된 이미지 400 INVALID_IMAGE, 용량 초과 413 IMAGE_TOO_LARGE, 치수·인원·미래 시각·출처 위반 400 VALIDATION_FAILED, 없는 식당 404 CAFETERIA_NOT_FOUND.
 
-#### POST `/api/admin/cafeterias/{cafeteriaId}/occupancy` — 인원 직접 입력 (시뮬레이션/보정)
-Request
-```json
-{ "currentPeople": 150, "recordedAt": "2026-10-07T12:10:00" }
-```
-- `recordedAt`을 생략하면 현재 시각. 과거 시각을 넣어 시간대별 더미 데이터를 만들 수 있습니다. `source`는 `SIMULATION`(또는 `MANUAL`)로 저장됩니다.
+운영: 전체 식사 공간이 보이는 사진을 사용해야 합니다. 부분 사진과 사각지대는 식당 전체 인원을 보장하지 않습니다. 실제 카메라 각도의 수동 집계와 비교해 정확도를 검증해야 합니다. 호출 주기는 수집기에서 관리하며, 재시도에 따른 중복 비용을 막기 위해 서버 자동 재시도는 없습니다. CCTV 전용 키 인증은 아직 제공하지 않습니다.
 
-Response — `200 OK`: 위 `analyze`와 같은 형식 (`source`만 다름)
+스키마: `usage_snapshots.source` varchar(20), NOT NULL, 기본값 MANUAL 추가. 로컬은 ddl-auto=update, 운영에서는 배포 전에 스키마 변경이 필요합니다.
 
-#### GET `/api/admin/cafeterias/{cafeteriaId}/occupancy/history` — 인원 기록 조회
-Query: `date`(선택). 시각순 스냅샷 목록 (`recordedAt`, `peopleCount`, `source`). 시간대별 이용 현황의 근거 데이터로 쓰입니다.
-
-#### `GET /api/cafeterias/{cafeteriaId}/status` 변경 (제안)
-현재는 주문 데이터에서 계산한 값입니다. 이미지/시뮬레이션 스냅샷이 생기면 **`currentPeople`을 최신 스냅샷 값으로** 반환하고, `usageRate`·`congestionLevel` 계산은 그대로 둡니다. 응답 필드는 변하지 않습니다.
-
-#### 정해야 할 것
-1. **`currentPeople`의 기준**: ① 최신 스냅샷(이미지·시뮬레이션)을 기준으로 하고, 오래됐으면 주문 기반 값으로 대체 / ② 계속 주문 기반 / ③ 둘을 합산·비교. (추천: ①, 스냅샷이 N분 이상 오래되면 주문 기반으로 대체)
-2. **인원 추정 방식**: CLOVA Studio의 이미지 입력 모델(HCX-005)에 "사람 수" 질의 / CLOVA Face Recognition(얼굴 수) 중 선택. 둘 다 전용 군중 계수기가 아니라서 **CCTV 실제 각도의 샘플 사진으로 정확도를 먼저 확인**해야 합니다. 정확한 호출 규격과 용량·호출 제한은 공식 문서에서 다시 확인이 필요합니다.
-3. **이미지 호출 주체와 인증**: CCTV 수집기는 로그인 세션이 없으므로 관리자 세션 대신 **카메라 전용 API 키(헤더)** 인증이 필요한지.
-4. **이미지 보관 여부**: CCTV 이미지에는 얼굴이 포함되므로, **분석 후 저장하지 않고 사람 수만 남기는 것**을 추천합니다.
-5. **수집 주기**: 몇 분 간격으로 분석할지 (호출 비용·제한과 연결).
-6. **시뮬레이션 방식**: 시나리오를 미리 정해 한 번에 넣을지, 서버가 시간에 따라 자동 생성할지.
+공식 호출 규격: https://api.ncloud-docs.com/docs/clovastudio-chatcompletionsv3
 
 ## 9. 개발 참고
 

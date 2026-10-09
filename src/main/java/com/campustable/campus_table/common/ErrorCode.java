@@ -14,6 +14,8 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    ANALYSIS_FAILED(HttpStatus.BAD_GATEWAY, "이미지 인원 분석에 실패했습니다."),
+    CLOVA_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "CLOVA API 키가 설정되지 않았습니다."),
     INVALID_IMAGE(HttpStatus.BAD_REQUEST, "JPEG, PNG, WebP 이미지 파일만 업로드할 수 있습니다."),
     IMAGE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "이미지는 2MB 이하여야 합니다."),
     STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "이미지 저장소가 설정되지 않았습니다."),

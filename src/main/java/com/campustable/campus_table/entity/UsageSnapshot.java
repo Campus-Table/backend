@@ -28,4 +28,9 @@ public class UsageSnapshot {
 
     @Column(nullable = false)
     private int waitingPeople;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'MANUAL'")
+    @Builder.Default
+    private OccupancySource source = OccupancySource.MANUAL;
 }

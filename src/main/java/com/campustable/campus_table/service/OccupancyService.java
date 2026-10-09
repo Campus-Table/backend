@@ -23,13 +23,19 @@ public class OccupancyService {
 
     private final CafeteriaRepository cafeteriaRepository;
     private final OrderRepository orderRepository;
+    private final com.campustable.campus_table.repository.UsageSnapshotRepository snapshots;
+    @org.springframework.beans.factory.annotation.Value("${app.occupancy.snapshot-max-age-seconds:300}")
+    private long snapshotMaxAgeSeconds;
 
     @Transactional(readOnly = true)
     public Occupancy occupancy(Long cafeteriaId) {
         Cafeteria cafeteria = cafeteriaRepository.findById(cafeteriaId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAFETERIA_NOT_FOUND));
-        LocalDateTime now = LocalDateTime.now();
-        int current = (int) orderRepository.countInUse(cafeteriaId, OrderStatus.RECEIVED, now);
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
+        int current = snapshots.findTopByCafeteriaIdAndRecordedAtLessThanEqualOrderByRecordedAtDescIdDesc(cafeteriaId, now)
+                .filter(s -> !s.getRecordedAt().isBefore(now.minusSeconds(snapshotMaxAgeSeconds)))
+                .map(s -> s.getCurrentPeople())
+                .orElseGet(() -> (int) orderRepository.countInUse(cafeteriaId, OrderStatus.RECEIVED, now));
         int waiting = (int) orderRepository.countWaiting(cafeteriaId, OrderStatus.COOKING, now);
         double rate = cafeteria.getSeatCount() == 0 ? 0
                 : Math.round(current * 1000.0 / cafeteria.getSeatCount()) / 10.0;
