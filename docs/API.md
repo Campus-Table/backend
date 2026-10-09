@@ -97,7 +97,6 @@
 | Order | GET | `/api/orders/me/current` | 로그인 | 진행 중인 내 주문 1건 (8-0 F) |
 | Order | GET | `/api/orders/{orderId}` | 로그인 | 내 주문 상세 |
 | Order | POST | `/api/orders/{orderId}/arrival` | 로그인 | 현장 번호 도착 인증 |
-| Order | POST | `/api/orders/{orderId}/receive` | 로그인 | 음식 수령 |
 | Order | POST | `/api/orders/{orderId}/cancel` | 로그인 | 주문 취소(도착 인증 전) |
 | Notification | GET | `/api/notifications` | 로그인 | 내 알림 목록 (8-0 E) |
 | Notification | GET | `/api/notifications/unread-count` | 로그인 | 읽지 않은 알림 수 (8-0 E) |
@@ -319,7 +318,7 @@ Response — `200 OK`
   }
 ]
 ```
-- `diningMinutes`: 음식 수령 후 이용 종료로 간주하는 시간(분)
+- `diningMinutes`: 음식이 나온 뒤 이용 종료로 간주하는 시간(분)
 - `openingTime`, `closingTime`은 값이 없으면 `null`
 
 ### GET `/api/cafeterias/{cafeteriaId}` — 학식당 상세
@@ -355,8 +354,8 @@ Response — `200 OK`
   "recordedAt": "2026-10-07T21:23:25.1113992"
 }
 ```
-계산 규칙 (주문 데이터에서 요청 시점에 실시간 계산)
-- `currentPeople`: 음식을 수령했고 아직 이용 종료 시각(`수령 시각 + diningMinutes`) 전인 주문 수
+계산 규칙 (`currentPeople`은 8-1의 최근 인원 스냅샷이 우선이고, 없으면 아래 주문 기반 값)
+- `currentPeople`(주문 기반 예비값): 음식이 나왔고(예상 완료 시각 경과) 아직 이용 종료 시각(`예상 완료 시각 + diningMinutes`) 전인 주문 수
 - `waitingPeople`: 도착 인증 후 조리 중인(예상 완료 시각 전) 주문 수
 - `usageRate`: `currentPeople / seatCount × 100` (소수 첫째 자리 반올림)
 - `congestionLevel`: `RELAXED`(30% 미만) / `NORMAL`(60% 미만) / `CROWDED`(85% 미만) / `VERY_CROWDED`
@@ -440,7 +439,7 @@ Response — `200 OK`
 ### 주문 상태
 
 ```text
-PAID ──(현장 번호 인증)──▶ COOKING ──(예상 시간 경과)──▶ READY ──(수령)──▶ RECEIVED
+PAID ──(현장 번호 인증)──▶ COOKING ──(예상 시간 경과: 음식이 나옴)──▶ RECEIVED
  │
  └──(취소 / 다음 날 미인증)──▶ CANCELLED
 ```
@@ -449,12 +448,12 @@ PAID ──(현장 번호 인증)──▶ COOKING ──(예상 시간 경과)�
 |---|---|
 | `PAID` | 선주문 + 마일리지 결제 완료. 아직 조리 시작 전 |
 | `COOKING` | 도착 인증 완료 → 대기번호 발급, 조리 시작 |
-| `READY` | 예상 대기시간 경과. 수령 가능 (**시간이 지나면 자동으로 바뀝니다. 관리자가 변경하지 않음**) |
-| `RECEIVED` | 음식 수령 완료 |
+| `RECEIVED` | 음식이 나옴 (예상 대기시간 경과 시 **자동으로 바뀝니다. 사용자·관리자가 누르는 버튼 없음**, 휴게소 번호 호출 방식). 수령 확인 절차는 없음 |
+| `READY` | 더 이상 만들어지지 않는 값 (이전 방식의 호환용. 서버가 조회하면 `RECEIVED`로 정리) |
 | `CANCELLED` | 취소됨 |
 
-- 상태 전이는 서버가 **조회 시점에** 반영합니다. 프론트는 주문 상세를 주기적으로 조회(폴링)해서 `READY`가 되면 "수령 안내"를 띄우면 됩니다.
-- **한 사용자는 진행 중인 주문(`PAID`/`COOKING`/`READY`)을 1개만** 가질 수 있습니다.
+- 상태 전이는 서버가 **조회 시점에** 반영합니다. 프론트는 주문 상세를 주기적으로 조회(폴링)해서 `COOKING`에서 `RECEIVED`로 바뀌면(또는 `FOOD_READY` 알림이 오면) "음식이 나왔어요, 대기번호 N번" 안내를 띄우면 됩니다. 수령 버튼/API는 없습니다.
+- **한 사용자는 진행 중인 주문(`PAID`/`COOKING`)을 1개만** 가질 수 있습니다. 음식이 나오면(`RECEIVED`) 바로 새 주문을 할 수 있습니다.
 - 주문은 **가게별로 분리**됩니다 (한 주문에 한 가게의 메뉴만).
 
 ### 주문 응답 형식 (공통)
@@ -484,7 +483,7 @@ PAID ──(현장 번호 인증)──▶ COOKING ──(예상 시간 경과)�
 | `waitingNumber` | 도착 인증 후 발급되는 대기번호 (가게별·날짜별 1번부터). 그 전에는 `null` |
 | `expectedReadyAt` | 예상 완료 시각. 도착 인증 전에는 `null` |
 | `remainingSeconds` | `COOKING` 상태일 때 남은 초(0 이상). 그 외에는 `null` |
-| `leaveAt` | 이용 종료 예정 시각 (수령 시각 + `diningMinutes`). 수령 후에만 값이 있음 |
+| `leaveAt` | 이용 종료 예정 시각 (`receivedAt` + `diningMinutes`). 음식이 나온 뒤에만 값이 있음 |
 | `unitPrice` | 주문 시점의 메뉴 가격 (이후 가격이 바뀌어도 유지) |
 
 ### POST `/api/orders` — 선주문 + 결제
@@ -549,15 +548,6 @@ Response — `200 OK` (주문 응답 형식, `status: "COOKING"`)
 | `VALIDATION_FAILED` | `code`가 비어 있음 |
 | `FORBIDDEN` / `ORDER_NOT_FOUND` | 남의 주문 / 없는 주문 |
 
-### POST `/api/orders/{orderId}/receive` — 음식 수령
-
-Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "RECEIVED"`)
-- `READY` 상태일 때만 가능합니다. 수령하면 현재 이용 인원에 반영되고, `leaveAt` 시각이 지나면 자동으로 이용 종료로 처리됩니다 (사용자가 "식사 완료"를 누르지 않음).
-
-| 에러 | 상황 |
-|---|---|
-| `INVALID_ORDER_STATUS` | 아직 조리 중이거나 이미 수령/취소됨 |
-
 ### POST `/api/orders/{orderId}/cancel` — 주문 취소
 
 Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "CANCELLED"`)
@@ -606,7 +596,7 @@ Response — `200 OK`: 수정된 식당 (`GET /api/cafeterias/{id}`와 같은 �
 |---|---|
 | `name` | 1~100자 (공백만은 불가) |
 | `seatCount` | 1~10,000 |
-| `diningMinutes` | 1~240. **이후에 수령하는 주문부터** 적용됩니다 (이미 수령한 주문의 이용 종료 시각은 그대로) |
+| `diningMinutes` | 1~240. **이후에 음식이 나오는 주문부터** 적용됩니다 (이미 수령한 주문의 이용 종료 시각은 그대로) |
 | `openingTime`, `closingTime` | `HH:mm` 또는 `HH:mm:ss`. **변경 후** 시작이 종료보다 빨라야 합니다 (하나만 보내도 기존 값과 비교). 영업시간을 비우는 기능은 없습니다 |
 
 - `seatCount`를 바꾸면 이용률·혼잡도 계산에 바로 반영됩니다.
@@ -705,7 +695,7 @@ Query: `date`(선택), `storeId`(선택), `status`(선택: `PAID` `COOKING` `REA
   }
 ]
 ```
-- 최신 주문이 먼저 옵니다. 조리 완료 예상 시각이 지난 주문은 `READY`로 표시됩니다.
+- 최신 주문이 먼저 옵니다. 조리 완료 예상 시각이 지났지만 아직 `RECEIVED`로 정리되지 않은(사용자가 조회하기 전) 주문은 관리자 화면에서만 `READY`로 표시됩니다.
 - `status` 필터는 DB에 저장된 상태 기준이라, 아직 조회되지 않아 `COOKING`으로 남아 있는 지난 주문은 `COOKING` 필터에 포함될 수 있습니다.
 
 ### GET `/api/admin/orders/menu-counts` — 메뉴별 주문 인원
@@ -840,7 +830,7 @@ DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` �
   }
 ]
 ```
-- 오늘 도착 인증을 했고 아직 수령하지 않은 주문(`COOKING`, 예상 시간이 지난 `READY`)이며, **도착 인증이 최근인 순**입니다.
+- 오늘 도착 인증을 했고 아직 `RECEIVED`로 정리되지 않은 주문(`COOKING`, 예상 시간이 지났지만 사용자가 조회하기 전이면 `READY`로 표시)이며, **도착 인증이 최근인 순**입니다.
 - `READY`이면 `remainingSeconds`는 `0`입니다. 대시보드의 `waitingPeople`은 `COOKING`만 셉니다.
 - `GET /api/admin/orders?status=COOKING`과 달리 DB에 `COOKING`으로 남아 있는 지난 주문이 섞이지 않고, 남은 시간이 서버 기준으로 계산됩니다.
 
@@ -875,7 +865,7 @@ DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` �
 | `ORDER_PAID` | 선주문·결제 완료 | 선주문이 완료되었습니다 | 51장국밥 순대국밥 결제가 완료됐어요. |
 | `WAITING_NUMBER_ISSUED` | 도착 인증 완료 | 대기번호 13번이 발급되었습니다 | 도착 인증이 완료되어 대기번호가 발급됐어요. |
 | `COOKING_STARTED` | 도착 인증 완료 | 음식 조리가 시작되었습니다 | 예상 준비시간은 약 6분입니다. |
-| `FOOD_READY` | 예상 준비 시각 경과 | 음식을 수령하러 와주세요 | 예상 준비시간이 지났습니다. 51장국밥 수령대로 와주세요. |
+| `FOOD_READY` | 예상 준비 시각 경과 (음식이 나옴) | 음식을 수령하러 와주세요 | 예상 준비시간이 지났습니다. 51장국밥 수령대로 와주세요. |
 | `ORDER_CANCELLED` | 주문 취소 / 다음 날 미인증 자동 취소 | 주문이 취소되었습니다 | 결제 금액의 50%인 3,250P가 환불되었어요. |
 | `MILEAGE_CHARGED` | 마일리지 충전 성공 | 마일리지가 충전되었습니다 | 5,000P가 충전됐어요. |
 
@@ -910,7 +900,7 @@ Request body 없음. Response — `200 OK` + 읽음 처리된 알림. 이미 읽
 - DB: `notifications(id, user_id, type, title, message, order_id NULL, is_read, created_at)`. `(order_id, type)` 유니크로 중복 생성을 막습니다.
 
 #### F. 진행 중 주문 1건 — `GET /api/orders/me/current`
-앱을 새로고침해도 "내 주문" 화면을 복원하기 위한 조회입니다. 진행 중(`PAID`/`COOKING`/`READY`)인 주문이 있으면 `200` + 주문 응답 형식, **없으면 `204 No Content`**(본문 없음)입니다. 지금은 `GET /api/orders/me`로 전체를 받아 걸러야 합니다.
+앱을 새로고침해도 "내 주문" 화면을 복원하기 위한 조회입니다. 진행 중(`PAID`/`COOKING`)인 주문이 있으면 `200` + 주문 응답 형식, **없으면 `204 No Content`**(본문 없음)입니다. 지금은 `GET /api/orders/me`로 전체를 받아 걸러야 합니다.
 
 #### 변경 요약 (DB)
 | 대상 | 변경 |
