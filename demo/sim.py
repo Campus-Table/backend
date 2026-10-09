@@ -292,7 +292,7 @@ class Sim:
         S, tick, start, last_log = 1.0, 0.5, time.time(), 0
         # 서버는 가게당 평균 대기시간마다 1건씩 처리하므로 처리량 이상으로 도착시키면 줄이 끝없이 길어진다
         avg = self.a.avg_wait or (sum(s["avg"] for s in self.stores) / len(self.stores))
-        cap_real = 0.85 * len(self.stores) / (avg * 60)
+        cap_real = 0.85 * len(self.stores) * self.a.cooking_capacity / (avg * 60)
         mean_stay = self.mean_eat * 60 + 180  # 가상 초 (식사 + 조리 대기 추정)
         try:
             while not self.stop.is_set():
@@ -348,6 +348,7 @@ def main():
     ap.add_argument("--interval", type=float, default=20, help="스냅샷 전송 간격(초)")
     ap.add_argument("--pool", type=int, default=300, help="사용할 시연 계정 수(최대 300)")
     ap.add_argument("--eat-median", type=float, default=25, help="식사 시간 중앙값(가상 분). 늘리면 같은 도착 속도에서 인원이 더 쌓임")
+    ap.add_argument("--cooking-capacity", type=int, default=3, help="가게당 동시 조리 수(서버 stores.cooking_capacity, 시드 기본 3). 도착 속도 상한 계산에 사용")
     ap.add_argument("--noshow", type=float, default=0.05, help="도착 인증을 안 하는 비율")
     ap.add_argument("--max-rate", type=float, default=4 / 30, help="가상 초당 최대 도착 인원(기본 30초에 4명)")
     ap.add_argument("--restore", action="store_true", help="비정상 종료 후 가게 평균 대기시간만 복원하고 끝냄")
