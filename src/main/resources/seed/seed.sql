@@ -124,7 +124,7 @@ SELECT s.id, v.name, v.price, true, NOW() FROM stores s JOIN (
   UNION ALL SELECT '도쿄야오므라이스' AS name, 7400 AS price
   UNION ALL SELECT '도쿄함박스테이크' AS name, 8900 AS price
   UNION ALL SELECT '불닭함박스테이크' AS name, 9900 AS price
-  UNION ALL SELECT '음료' AS name, 0 AS price
+  UNION ALL SELECT '음료' AS name, 2200 AS price
   UNION ALL SELECT '투움바오므라이스' AS name, 7900 AS price
   UNION ALL SELECT '투움바함박스테이크' AS name, 9900 AS price
 ) v
