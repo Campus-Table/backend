@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminMenuService {
 
+    private final ImageStorageService imageStorage;
     private final MenuRepository menuRepository;
     private final StoreRepository storeRepository;
 
@@ -32,6 +33,10 @@ public class AdminMenuService {
     @Transactional
     public MenuAdminResponse update(Long menuId, MenuRequest req) {
         Menu menu = find(menuId);
+        if (!java.util.Objects.equals(menu.getImageUrl(), req.imageUrl())) {
+            imageStorage.cleanupAfterCommit(menu.getImageObjectKey());
+            menu.changeImage(req.imageUrl(), null);
+        }
         menu.update(req.name().trim(), req.price(), req.imageUrl());
         return MenuAdminResponse.from(menu);
     }
@@ -44,6 +49,6 @@ public class AdminMenuService {
     }
 
     private Menu find(Long menuId) {
-        return menuRepository.findById(menuId).orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
+        return menuRepository.findForUpdate(menuId).orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
     }
 }

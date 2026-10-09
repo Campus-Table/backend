@@ -100,7 +100,10 @@
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/arrival-code` | ADMIN | 오늘의 현장 번호 |
 | Admin | POST | `/api/admin/cafeterias/{cafeteriaId}/arrival-code/regenerate` | ADMIN | 현장 번호 재발급 |
 | Admin | PATCH | `/api/admin/cafeterias/{cafeteriaId}` | ADMIN | 식당 설정 수정 (이름, 좌석 수, 식사 시간, 영업시간) |
-| Admin | PATCH | `/api/admin/stores/{storeId}` | ADMIN | 가게 정보 수정 (이름, 설명, 분류, 평균 대기시간, 이미지) |
+| Admin | PATCH | `/api/admin/stores/{storeId}` | ADMIN | 가게 정보 부분 수정 (이름, 설명, 분류, 평균 대기시간, 이미지 URL) |
+| Admin | PUT | `/api/admin/stores/{storeId}` | ADMIN | 가게 정보 전체 교체 (이미지는 유지) — 아래 "관리자 이미지 업로드 및 가게 수정" |
+| Admin | POST | `/api/admin/stores/{storeId}/image` | ADMIN | 가게 이미지 업로드 (multipart) |
+| Admin | POST | `/api/admin/menus/{menuId}/image` | ADMIN | 메뉴 이미지 업로드 (multipart) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 (`todayOrders` 추가: 8-0 B) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/queues` | ADMIN | 가게별 현재 대기번호 |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/store-stats` | ADMIN | 가게별 오늘 주문·대기·인기 메뉴 (8-0 B) |
@@ -620,12 +623,25 @@ Response — `200 OK`: 수정된 가게 (`GET /api/stores/{id}`와 같은 형식
 | `description` | 200자 이하. **빈 문자열 `""`을 보내면 값이 지워집니다(`null`)** |
 | `category` | 30자 이하. `""`이면 지워집니다 |
 | `avgWaitMinutes` | 1~120분. 이후 도착 인증하는 주문의 예상 대기시간 계산에 쓰입니다 |
-| `imageUrl` | 500자 이하. `""`이면 지워집니다 (이미지 파일 업로드는 아직 없음 — 8장) |
+| `imageUrl` | 500자 이하. **URL 문자열**로 이미지를 바꾸거나 `""`로 지웁니다. 파일을 올리려면 `POST /api/admin/stores/{id}/image`를 쓰세요 (아래 "관리자 이미지 업로드 및 가게 수정") |
+
+**이미지 URL을 바꾸거나 지우면 이전에 업로드한 파일이 함께 정리됩니다.** 이전 이미지가 업로드한 파일이면 DB 커밋 후 저장소에서 삭제되고 저장된 객체 키도 지워집니다 (외부 URL은 삭제하지 않음). 현재와 **같은 URL을 그대로 보내거나** `imageUrl`을 생략하면 이미지는 그대로 유지됩니다. 요청이 검증에 실패(400)하면 아무것도 바뀌지 않고 파일도 삭제되지 않습니다. 같은 가게의 이미지 업로드·수정은 DB 행 잠금으로 직렬화됩니다.
 
 | 에러 | 상황 |
 |---|---|
 | `VALIDATION_FAILED` | 변경할 항목이 없음 / 범위·길이 위반 |
 | `STORE_NOT_FOUND` | 없는 가게 |
+| `STORAGE_NOT_CONFIGURED` (503) | 업로드한 이미지가 있는 가게인데 이미지 저장소가 설정되지 않아 이전 파일을 정리할 수 없음 |
+
+#### `PUT`과 `PATCH`의 차이 (가게 정보 수정)
+| | `PUT /api/admin/stores/{id}` | `PATCH /api/admin/stores/{id}` |
+|---|---|---|
+| 방식 | **전체 교체**: `name`, `avgWaitMinutes` 필수, 생략한 `description`/`category`는 비워짐 | **부분 수정**: 보낸 항목만 바뀜 (생략 = 그대로, `""` = 지움) |
+| 이미지 | 건드리지 않음 (유지) | `imageUrl`로 교체/삭제 가능 (이전 업로드 파일은 정리) |
+| 평균 대기시간 범위 | 0 이상 | 1~120분 |
+| 응답 | `id, cafeteriaId, name, description, category, avgWaitMinutes, imageUrl` | `GET /api/stores/{id}`와 같은 형식 (`minPrice` 등 포함) |
+
+화면에서 "이름만 바꾸기"처럼 일부만 수정할 때는 `PATCH`가 편하고, 폼 전체를 저장할 때는 `PUT`을 쓰면 됩니다.
 
 ### GET `/api/admin/cafeterias/{cafeteriaId}/dashboard` — 현황
 ```json
@@ -729,7 +745,7 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 회의록 기준으로 아직 구현되지 않았거나 확정되지 않은 항목입니다. 구현 전에 이 문서에 먼저 추가합니다. (8-0은 구현이 끝나 상세 명세로 남겨둔 항목입니다.)
 
 - ✅ **프론트엔드 코드 분석으로 추가된 API** (알림, 가게 정보 확장, 관리자 통계 등) — 구현 완료, 아래 8-0 참고
-- 메뉴 이미지 업로드 (NAVER Cloud Object Storage)
+- ✅ 메뉴·가게 이미지 업로드 (NAVER Cloud Object Storage) — 구현 완료, 아래 "관리자 이미지 업로드 및 가게 수정" 참고
 - **CCTV 이미지 기반 인원 추정 (CLOVA)** 및 시뮬레이션 데이터 주입 → 아래 8-1 참고
 - 혼잡도 구간 확정
 - 식사 시간(`diningMinutes`)을 가게/메뉴별로 다르게 할지 여부
@@ -963,3 +979,38 @@ Query: `date`(선택). 시각순 스냅샷 목록 (`recordedAt`, `peopleCount`, 
 - **Redis 요구사항**: 로그인 세션은 "사용자별 조회가 가능한(indexed)" 형태로 저장됩니다 (`spring.session.data.redis.repository-type: indexed`). 비밀번호 변경·재설정 때 다른 기기의 세션을 종료하려는 용도입니다. 요청 제한 카운터와 인증 코드도 같은 Redis를 사용합니다. 세션 만료 정리를 위해 Redis의 keyspace 알림(`notify-keyspace-events`)이 켜져 있어야 하며, 관리형 Redis에서 `CONFIG` 명령이 막혀 있으면 인프라 설정으로 켜야 합니다.
 - **배포(ALB) 시 IP 제한**: 로그인 IP 제한은 `request.getRemoteAddr()` 기준입니다. ALB 뒤에서는 클라이언트 IP가 `X-Forwarded-For`로 오므로 `server.forward-headers-strategy` 설정이 필요합니다 (설정 전에는 모든 사용자가 ALB의 IP 하나로 보입니다).
 - **프론트 로컬 개발**: Vite 기본 포트는 `5173`인데 서버의 CORS 기본값은 `http://localhost:3000`입니다. `.env`의 `CORS_ALLOWED_ORIGINS`를 `http://localhost:5173`으로 바꾸거나 Vite 프록시(`/api` → 백엔드)를 사용하세요. 요청에는 항상 `credentials: "include"`(axios `withCredentials: true`)가 필요합니다.
+
+## 관리자 이미지 업로드 및 가게 수정
+
+ADMIN 세션 쿠키가 필요합니다.
+
+- `POST /api/admin/menus/{menuId}/image`
+- `POST /api/admin/stores/{storeId}/image`
+
+`multipart/form-data`의 `file` 필드로 파일 한 개를 전송합니다. JPEG/PNG/WebP, 최대 2MiB(2,097,152바이트), 최대 2천만 픽셀입니다. 확장자와 요청 Content-Type 대신 실제 파일을 디코딩해 검사합니다. 성공 시 200과 수정된 메뉴/가게 정보(`imageUrl` 포함)를 반환합니다.
+
+```js
+const body = new FormData();
+body.append('file', selectedFile);
+const response = await fetch(`/api/admin/menus/${menuId}/image`, {
+  method: 'POST', credentials: 'include', body
+}); // Content-Type은 브라우저가 boundary와 함께 설정
+```
+
+`PUT /api/admin/stores/{storeId}`는 아래 JSON으로 이름·설명·분류·평균 대기시간을 수정합니다. 이미지 값은 유지됩니다. name과 avgWaitMinutes는 필수이며 description/category 생략 또는 null은 해당 값을 비웁니다.
+
+```json
+{"name":"한식", "description":"오늘의 식사", "category":"한식", "avgWaitMinutes":3}
+```
+
+name 최대 100자(공백만 불가), description 최대 200자, category 최대 30자, avgWaitMinutes 0 이상. 응답: id, cafeteriaId, name, description, category, avgWaitMinutes, imageUrl.
+
+오류: 400 INVALID_IMAGE/VALIDATION_FAILED, 413 IMAGE_TOO_LARGE, 404 MENU_NOT_FOUND/STORE_NOT_FOUND, 503 STORAGE_NOT_CONFIGURED, 502 STORAGE_FAILED. 로그인 없음 401, 일반 사용자 403.
+
+### Object Storage 설정
+
+`.env.example`의 OBJECT_STORAGE_* 값을 `.env`/배포 환경에 설정하고 OBJECT_STORAGE_ENABLED=true로 활성화합니다. 키는 서버에만 보관합니다. 한국 endpoint는 https://kr.object.ncloudstorage.com, region은 kr-standard입니다. 버킷은 사전에 생성하고 서버 키에 해당 버킷의 업로드/삭제 권한을 부여합니다. 이미지 조회는 공개 읽기 가능한 `images/` 경로 또는 CDN을 구성하고 OBJECT_STORAGE_PUBLIC_BASE_URL을 그 경로의 기본 URL로 지정합니다(예: https://kr.object.ncloudstorage.com/my-bucket). 서버는 객체 ACL을 변경하지 않습니다. 기본 URL 최대 400자.
+
+저장소 미설정 시에도 서버와 기존 URL 방식은 동작합니다. 업로드 이미지는 UUID 기반 키와 URL을 DB에 저장합니다(image_object_key 컬럼 추가, 현재 ddl-auto=update 적용; 운영에서는 스키마 변경 필요). 외부 URL 이미지는 삭제하지 않습니다. 교체는 DB 커밋 후 이전 객체 삭제, 롤백 시 새 객체 삭제로 처리하며 같은 메뉴/가게의 수정을 DB 잠금으로 직렬화합니다. 기존 메뉴 수정 API에서 imageUrl을 바꾸거나 null로 비워도 이전 업로드 객체를 정리합니다.
+
+저장소 삭제 실패는 DB 저장을 되돌리지 않고 객체 키를 ERROR 로그에 남깁니다. 실패한 삭제는 해당 키로 수동 재시도해야 하며 자동 재시도 작업은 포함하지 않습니다. 스토리지 키/버킷을 변경할 때 기존 객체를 먼저 이관해야 합니다.

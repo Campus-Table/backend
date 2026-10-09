@@ -53,7 +53,7 @@ public final class HourlyOccupancy {
                 }
             }
 
-            events.sort(Comparator.comparing(Event::at).thenComparingInt(Event::delta)); // 같은 시각이면 종료(-1)가 먼저
+            events.sort(Comparator.comparing((Event event) -> event.at()).thenComparingInt(event -> event.delta())); // 같은 시각이면 종료(-1)가 먼저
             int peak = active;
             for (Event ev : events) {
                 active += ev.delta();

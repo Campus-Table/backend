@@ -5,7 +5,6 @@ import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.dto.NotificationDtos.NotificationResponse;
 import com.campustable.campus_table.entity.*;
 import com.campustable.campus_table.repository.NotificationRepository;
-import com.campustable.campus_table.repository.OrderItemRepository;
 import com.campustable.campus_table.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +21,6 @@ public class NotificationService {
     private static final int MAX_LIMIT = 100;
 
     private final NotificationRepository repository;
-    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
 
     // ---------- 생성 ----------

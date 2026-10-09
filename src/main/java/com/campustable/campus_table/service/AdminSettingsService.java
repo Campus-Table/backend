@@ -14,6 +14,7 @@ import com.campustable.campus_table.repository.MenuRepository;
 import com.campustable.campus_table.repository.StoreRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class AdminSettingsService {
     private final CafeteriaRepository cafeteriaRepository;
     private final MenuRepository menuRepository;
     private final ArrivalCodeService arrivalCodeService;
+    private final ImageStorageService imageStorage;
 
     @Transactional
     public StoreResponse updateStore(Long storeId, StoreUpdateRequest req) {
@@ -37,10 +39,19 @@ public class AdminSettingsService {
         if (req.name() != null && req.name().isBlank()) {
             throw new CustomException(ErrorCode.VALIDATION_FAILED, "가게 이름은 비워둘 수 없습니다.");
         }
-        Store store = storeRepository.findById(storeId)
+        // 이미지 업로드/교체와 같은 행 잠금을 사용해, 동시에 수정해도 이전 파일 정리가 어긋나지 않게 한다
+        Store store = storeRepository.findForUpdate(storeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
-        store.update(req.name() == null ? null : req.name().trim(), req.description(), req.category(),
-                req.avgWaitMinutes(), req.imageUrl());
+        store.patch(req.name() == null ? null : req.name().trim(), req.description(), req.category(),
+                req.avgWaitMinutes());
+        if (req.imageUrl() != null) {
+            String newUrl = req.imageUrl().isBlank() ? null : req.imageUrl().trim();
+            if (!Objects.equals(store.getImageUrl(), newUrl)) {
+                // 이전에 업로드한 파일이면 커밋 후 삭제하고 키를 지운다 (외부 URL이면 키가 없어 아무 일도 하지 않음)
+                imageStorage.cleanupAfterCommit(store.getImageObjectKey());
+                store.changeImage(newUrl, null);
+            }
+        }
         return StoreResponse.from(store, menuRepository.findByStoreId(storeId));
     }
 

@@ -4,14 +4,16 @@ import com.campustable.campus_table.common.CustomException;
 import com.campustable.campus_table.common.ErrorCode;
 import com.campustable.campus_table.common.RateLimitException;
 import com.campustable.campus_table.repository.UserRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+
+
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -142,34 +144,43 @@ public class EmailVerificationService {
         }
     }
 
+    /**
+     * 코드 확인과 소비를 Redis에서 **한 번에(원자적으로)** 처리한다.
+     * 확인(조회)과 삭제를 따로 하면, 같은 코드로 동시에 요청한 둘이 모두 통과할 수 있다 (코드 1회 사용 보장 실패).
+     * 스크립트 결과: 1 성공(코드·시도 횟수 삭제), 0 코드 없음/만료, -1 오답(시도 남음), -2 시도 소진(코드 폐기)
+     */
+    private static final DefaultRedisScript<Long> CHECK_AND_CONSUME = new DefaultRedisScript<>("""
+            local saved = redis.call('GET', KEYS[1])
+            if not saved then return 0 end
+            local attempts = redis.call('INCR', KEYS[2])
+            if redis.call('TTL', KEYS[2]) < 0 then redis.call('EXPIRE', KEYS[2], ARGV[3]) end
+            local max = tonumber(ARGV[2])
+            if attempts > max then
+              redis.call('DEL', KEYS[1], KEYS[2])
+              return -2
+            end
+            if saved == ARGV[1] then
+              redis.call('DEL', KEYS[1], KEYS[2])
+              return 1
+            end
+            if attempts >= max then
+              redis.call('DEL', KEYS[1], KEYS[2])
+              return -2
+            end
+            return -1
+            """, Long.class);
+
     private void checkCode(String purpose, String studentNumber, String code) {
-        String saved = redis.opsForValue().get(codeKey(purpose, studentNumber));
-        if (saved == null) {
-            throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
-        }
-        // 시도 횟수를 비교 전에 원자적으로 올려서, 동시에 요청을 쏟아내도 코드당 5번까지만 비교된다
-        long attempts = limiter.increment(failKey(purpose, studentNumber), CODE_TTL);
-        if (attempts > MAX_CODE_ATTEMPTS) {
-            discard(purpose, studentNumber);
-            throw tooManyCodeAttempts();
-        }
-        boolean match = MessageDigest.isEqual(saved.getBytes(StandardCharsets.UTF_8),
-                code.trim().getBytes(StandardCharsets.UTF_8));
-        if (match) {
-            redis.delete(codeKey(purpose, studentNumber));
-            limiter.reset(failKey(purpose, studentNumber));
+        Long result = redis.execute(CHECK_AND_CONSUME,
+                List.of(codeKey(purpose, studentNumber), failKey(purpose, studentNumber)),
+                code.trim(), String.valueOf(MAX_CODE_ATTEMPTS), String.valueOf(CODE_TTL.toSeconds()));
+        if (result != null && result == 1) {
             return;
         }
-        if (attempts == MAX_CODE_ATTEMPTS) { // 마지막 기회까지 틀림: 코드를 폐기하고 새로 요청하게 한다
-            discard(purpose, studentNumber);
+        if (result != null && result == -2) { // 5번까지 틀림: 코드가 폐기되었으니 새로 요청해야 한다
             throw tooManyCodeAttempts();
         }
         throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
-    }
-
-    private void discard(String purpose, String studentNumber) {
-        redis.delete(codeKey(purpose, studentNumber));
-        limiter.reset(failKey(purpose, studentNumber));
     }
 
     private RateLimitException tooManyCodeAttempts() {

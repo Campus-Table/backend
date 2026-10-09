@@ -24,13 +24,13 @@ public record StoreResponse(
      */
     public static StoreResponse from(Store store, List<Menu> menus) {
         Integer minPrice = menus.stream()
-                .filter(Menu::isAvailable)
-                .map(Menu::getPrice)
-                .min(Integer::compare)
+                .filter(menu -> menu.isAvailable())
+                .map(menu -> menu.getPrice())
+                .min((a, b) -> Integer.compare(a, b))
                 .orElse(null);
         String representative = menus.stream()
-                .min(Comparator.comparing(Menu::getId))
-                .map(Menu::getName)
+                .min(Comparator.comparing((Menu menu) -> menu.getId()))
+                .map(menu -> menu.getName())
                 .orElse(null);
 
         return new StoreResponse(

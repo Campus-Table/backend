@@ -1,6 +1,10 @@
 spring:
   config:
     import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
   application:
     name: campus_table
   mail:
@@ -40,6 +44,14 @@ server:
         same-site: lax
 
 app:
+  object-storage:
+    enabled: ${OBJECT_STORAGE_ENABLED:false}
+    endpoint: ${OBJECT_STORAGE_ENDPOINT:https://kr.object.ncloudstorage.com}
+    region: ${OBJECT_STORAGE_REGION:kr-standard}
+    bucket: ${OBJECT_STORAGE_BUCKET:}
+    access-key: ${OBJECT_STORAGE_ACCESS_KEY:}
+    secret-key: ${OBJECT_STORAGE_SECRET_KEY:}
+    public-base-url: ${OBJECT_STORAGE_PUBLIC_BASE_URL:}
   school-email-domain: ${SCHOOL_EMAIL_DOMAIN:dankook.ac.kr}
   mail-enabled: ${MAIL_ENABLED:true}
   toss:
