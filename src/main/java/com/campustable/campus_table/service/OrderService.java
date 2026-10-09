@@ -127,11 +127,16 @@ public class OrderService {
         em.find(Store.class, store.getId(), LockModeType.PESSIMISTIC_WRITE); // 가게별 대기번호 직렬화
         int number = orderRepository.maxWaitingNumber(store.getId(), now.toLocalDate()) + 1;
         long ahead = orderRepository.countCooking(store.getId(), now.toLocalDate(), OrderStatus.COOKING, now);
-        // 예상 대기시간 = (앞 대기 인원 + 1) × 가게 평균 대기시간
-        long expectedMinutes = (ahead + 1) * store.getAvgWaitMinutes();
+        long expectedMinutes = expectedMinutes(ahead, store.getCookingCapacity(), store.getAvgWaitMinutes());
         order.arrive(now, number, now.plusMinutes(expectedMinutes));
         notificationService.arrived(order, expectedMinutes);
         return toResponses(List.of(order), now).get(0);
+    }
+
+    /** 예상 대기시간 = ceil((앞 대기 인원 + 1) / 동시 조리 수) x 가게 평균 대기시간 (먼저 도착한 순서대로 조리). */
+    static long expectedMinutes(long ahead, int cookingCapacity, int avgWaitMinutes) {
+        long slots = Math.max(1, cookingCapacity);
+        return ((ahead + slots) / slots) * avgWaitMinutes; // ceil((ahead + 1) / slots)
     }
 
     @Transactional(noRollbackFor = CustomException.class)
