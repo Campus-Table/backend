@@ -25,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
     private static final List<OrderStatus> ACTIVE = List.of(OrderStatus.PAID, OrderStatus.COOKING, OrderStatus.READY);
-    /** 도착 인증 전 취소(자동 취소 포함) 시 환불 비율(%) */
-    private static final int REFUND_PERCENT = 50;
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -40,7 +38,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(Long userId, CreateRequest req) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         User user = lockUser(userId); // 사용자별 직렬화(중복 주문/잔액 경합 방지)
         Store store = storeRepository.findById(req.storeId())
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
@@ -81,7 +79,7 @@ public class OrderService {
 
     @Transactional
     public List<OrderResponse> myOrders(Long userId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         List<Order> orders = orderRepository.findByUserIdOrderByIdDesc(userId);
         orders.forEach(o -> sync(o, now));
         return toResponses(orders, now);
@@ -90,7 +88,7 @@ public class OrderService {
     /** 진행 중(PAID/COOKING/READY)인 내 주문 1건. 없으면 empty. */
     @Transactional
     public Optional<OrderResponse> current(Long userId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         return syncAndFindActive(userId, now).stream()
                 .max(Comparator.comparing((Order order) -> order.getId()))
                 .map(o -> toResponses(List.of(o), now).get(0));
@@ -99,12 +97,12 @@ public class OrderService {
     /** 시간 경과에 따른 상태 전이(수령 안내/자동 취소 알림 포함)만 반영한다. 알림 조회 전에 호출된다. */
     @Transactional
     public void syncActiveOrders(Long userId) {
-        syncAndFindActive(userId, LocalDateTime.now());
+        syncAndFindActive(userId, LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul")));
     }
 
     @Transactional
     public OrderResponse get(Long userId, Long orderId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         Order order = findOwned(userId, orderId, false);
         sync(order, now);
         return toResponses(List.of(order), now).get(0);
@@ -112,9 +110,9 @@ public class OrderService {
 
     // READ_COMMITTED: 가게 락을 기다리는 동안 앞선 요청이 확정한 대기번호를 max 조회가 볼 수 있어야 한다.
     // (기본 REPEATABLE READ는 락 대기 전에 잡힌 스냅샷을 써서 번호가 중복 발급된다)
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.READ_COMMITTED, noRollbackFor = CustomException.class)
     public OrderResponse arrive(Long userId, Long orderId, String code) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         lockUser(userId);
         Order order = findOwned(userId, orderId, true);
         sync(order, now);
@@ -136,9 +134,9 @@ public class OrderService {
         return toResponses(List.of(order), now).get(0);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = CustomException.class)
     public OrderResponse cancel(Long userId, Long orderId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
         lockUser(userId);
         Order order = findOwned(userId, orderId, true);
         sync(order, now);
@@ -155,9 +153,8 @@ public class OrderService {
     }
 
     private static boolean needsSync(Order order, LocalDateTime now) {
-        var today = now.toLocalDate();
         return switch (order.getStatus()) {
-            case PAID -> order.getOrderedAt().toLocalDate().isBefore(today);
+            case PAID -> !order.getOrderedAt().plusHours(1).isAfter(now);
             case COOKING -> !order.getExpectedReadyAt().isAfter(now);
             case READY -> true; // 이전 방식으로 남은 주문 정리
             default -> false;
@@ -165,8 +162,8 @@ public class OrderService {
     }
 
     /**
-     * 시간 경과에 따른 상태 전이를 조회 시점에 반영한다(스케줄러 없음).
-     * PAID(전날 미인증) -> CANCELLED + 환불, COOKING -> RECEIVED(예상 시간 경과 = 음식이 나온 것으로 보고
+     * 시간 경과에 따른 상태 전이를 조회 시점에 반영한다. 미인증 만료는 매분 작업에서도 처리한다.
+     * PAID(1시간 미인증) -> CANCELLED + 환불, COOKING -> RECEIVED(예상 시간 경과 = 음식이 나온 것으로 보고
      * 수령 안내 알림 + 이용 시작; 학식당은 별도 수령 확인이 없음. 이전 방식의 READY 주문도 RECEIVED로 정리).
      * 상태를 바꿔야 할 때만 행을 잠그고 최신 상태를 다시 읽는다.
      */
@@ -181,8 +178,7 @@ public class OrderService {
         if (!needsSync(order, now)) { // 잠금을 기다리는 사이 다른 요청이 이미 처리했을 수 있음
             return;
         }
-        var today = now.toLocalDate();
-        if (order.getStatus() == OrderStatus.PAID && order.getOrderedAt().toLocalDate().isBefore(today)) {
+        if (order.getStatus() == OrderStatus.PAID) {
             cancelWithRefund(order, now, true);
             return;
         }
@@ -195,11 +191,20 @@ public class OrderService {
 
     private void cancelWithRefund(Order order, LocalDateTime now, boolean auto) {
         order.cancel(now);
-        int refund = order.getTotalPrice() * REFUND_PERCENT / 100;
+        int refund = order.getTotalPrice();
         if (refund > 0) {
             mileageService.apply(order.getUser().getId(), MileageType.REFUND, refund, order);
         }
         notificationService.cancelled(order, refund, auto, now);
+    }
+
+    @Transactional
+    public void expireOrder(Long orderId, LocalDateTime now) {
+        var found = orderRepository.findById(orderId).orElse(null);
+        if (found == null) return;
+        lockUser(found.getUser().getId());
+        var order = orderRepository.findByIdForUpdate(orderId).orElse(null);
+        if (order != null && order.getStatus() == OrderStatus.PAID) sync(order, now);
     }
 
     private User lockUser(Long userId) {

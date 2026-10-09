@@ -30,6 +30,13 @@ public class MileageController {
         return mileageService.transactions(user.userId());
     }
 
+    @PostMapping("/charge/prepare")
+    public com.campustable.campus_table.dto.MileageDtos.ChargePrepareResponse prepare(
+            @AuthenticationPrincipal AuthUser user,
+            @Valid @RequestBody com.campustable.campus_table.dto.MileageDtos.ChargePrepareRequest req) {
+        return chargeService.prepare(user.userId(), req.amount());
+    }
+
     @PostMapping("/charge/confirm")
     public BalanceResponse confirmCharge(@AuthenticationPrincipal AuthUser user,
                                          @Valid @RequestBody ChargeConfirmRequest req) {

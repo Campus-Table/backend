@@ -12,6 +12,9 @@ public final class MileageDtos {
     private MileageDtos() {
     }
 
+    public record ChargePrepareRequest(@Min(1000) @Max(100000) int amount) { }
+    public record ChargePrepareResponse(String clientKey, String customerKey, String orderId, int amount) { }
+
     public record ChargeConfirmRequest(
             @NotBlank(message = "paymentKey가 필요합니다.") String paymentKey,
             @NotBlank(message = "orderId가 필요합니다.") String orderId,

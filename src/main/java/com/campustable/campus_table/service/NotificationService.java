@@ -54,12 +54,12 @@ public class NotificationService {
     @Transactional
     public void cancelled(Order order, int refund, boolean auto, LocalDateTime at) {
         String refundText = refund > 0
-                ? "결제 금액의 50%%인 %,dP가 환불되었어요.".formatted(refund) : "환불 금액이 없습니다.";
+                ? "%,dP가 환불되었어요.".formatted(refund) : "환불 금액이 없습니다.";
         insert(order, NotificationType.ORDER_CANCELLED, "주문이 취소되었습니다",
                 (auto ? "도착 인증을 하지 않아 주문이 자동 취소되었어요. " : "") + refundText, at);
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void mileageCharged(Long userId, int amount) {
         User user = userRepository.getReferenceById(userId);
         repository.save(Notification.builder().user(user).type(NotificationType.MILEAGE_CHARGED)

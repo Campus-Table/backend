@@ -410,9 +410,10 @@ Response — `200 OK`
 
 흐름
 ```text
-1) 프론트: 토스페이먼츠 결제창 호출 (클라이언트 키 사용, orderId는 프론트가 생성 — 6~64자)
-2) 결제 완료 후 successUrl로 paymentKey, orderId, amount 전달됨
-3) 프론트 → 이 API 호출 → 서버가 토스에 승인 요청 → 성공 시 마일리지 적립
+1) 프론트: POST /api/mileage/charge/prepare에 amount 전달 → 서버가 clientKey, customerKey, orderId, amount 반환
+2) 반환된 값으로 토스 테스트 결제창 호출
+3) 결제 완료 후 successUrl로 paymentKey, orderId, amount 전달됨
+4) 프론트 → 이 API 호출 → 서버가 토스에 승인 요청 → 성공 시 마일리지 적립
 ```
 Request
 ```json
@@ -423,7 +424,7 @@ Response — `200 OK`
 { "balance": 19500 }
 ```
 - 충전 금액: **1,000원 이상 100,000원 이하**
-- 토스가 승인을 거절하면 `400 PAYMENT_FAILED` (이미 처리된 결제를 다시 보내는 경우 포함)
+- 토스가 승인을 거절하면 `400 PAYMENT_FAILED`. 동일한 완료 결제를 다시 보내면 최초 결과를 반환하며 중복 적립하지 않습니다. 준비 기록이 없거나 사용자·금액·paymentKey가 다르면 `400 INVALID_REQUEST`.
 - ⚠️ 승인은 토스 **테스트 키** 기준입니다. 실제 결제는 일어나지 않습니다.
 
 #### 프론트 연동 가이드 (토스 테스트 결제창 → 임시 결제)
@@ -441,7 +442,7 @@ Response — `200 OK`
 ```text
 PAID ──(현장 번호 인증)──▶ COOKING ──(예상 시간 경과: 음식이 나옴)──▶ RECEIVED
  │
- └──(취소 / 다음 날 미인증)──▶ CANCELLED
+ └──(취소 / 1시간 만료)──▶ CANCELLED
 ```
 
 | status | 의미 |
@@ -552,8 +553,8 @@ Response — `200 OK` (주문 응답 형식, `status: "COOKING"`)
 
 Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "CANCELLED"`)
 - **도착 인증 전(`PAID`)에만** 취소할 수 있습니다.
-- 결제 금액의 **50%만 환불**됩니다 (`REFUND` 내역 생성, 소수점 이하 버림).
-- 그날 도착 인증을 하지 않은 주문은 **다음 날 조회 시 자동으로 `CANCELLED` 처리되고 50%가 환불**됩니다.
+- 도착 인증 전 만료되지 않은 주문의 사용자 직접 취소는 **100% 환불**됩니다 (`REFUND` 마일리지 내역 생성).
+- 미인증 주문은 날짜와 관계없이 **주문 후 1시간에 만료되어 100% 환불**됩니다. 매분 자동 작업과 조회 시 동기화로 `CANCELLED` 처리합니다.
 
 | 에러 | 상황 |
 |---|---|
@@ -866,7 +867,7 @@ DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` �
 | `WAITING_NUMBER_ISSUED` | 도착 인증 완료 | 대기번호 13번이 발급되었습니다 | 도착 인증이 완료되어 대기번호가 발급됐어요. |
 | `COOKING_STARTED` | 도착 인증 완료 | 음식 조리가 시작되었습니다 | 예상 준비시간은 약 6분입니다. |
 | `FOOD_READY` | 예상 준비 시각 경과 (음식이 나옴) | 음식을 수령하러 와주세요 | 예상 준비시간이 지났습니다. 51장국밥 수령대로 와주세요. |
-| `ORDER_CANCELLED` | 주문 취소 / 다음 날 미인증 자동 취소 | 주문이 취소되었습니다 | 결제 금액의 50%인 3,250P가 환불되었어요. |
+| `ORDER_CANCELLED` | 주문 취소 / 1시간 미인증 자동 취소 | 주문이 취소되었습니다 | 6,500P가 환불되었어요. |
 | `MILEAGE_CHARGED` | 마일리지 충전 성공 | 마일리지가 충전되었습니다 | 5,000P가 충전됐어요. |
 
 - 여러 메뉴가 있는 주문의 메시지는 `{첫 메뉴} 외 N개`로 표기합니다. `orderId`는 주문과 무관한 알림(`MILEAGE_CHARGED`)이면 `null`입니다.
@@ -896,7 +897,7 @@ Request body 없음. Response — `200 OK` + 읽음 처리된 알림. 이미 읽
 처리 규칙
 - 알림은 해당 이벤트가 일어난 **같은 트랜잭션에서 저장**됩니다 (주문 생성, 도착 인증, 취소, 충전 승인).
 - **`FOOD_READY`는 스케줄러 없이 조회 시점에 만들어집니다.** 예상 준비 시각이 지난 뒤 사용자가 알림 목록, 읽지 않은 수, 주문 API 중 하나를 처음 호출하면 생성되며 `createdAt`은 **예상 준비 시각**으로 기록됩니다. 주문당 1번만 생성됩니다. 그래서 프론트가 `unread-count`를 주기적으로 호출하면 준비 완료 알림이 자연스럽게 나타납니다.
-- 같은 방식으로 다음 날 자동 취소된 주문의 `ORDER_CANCELLED`도 조회 시점에 생성됩니다.
+- 자동 취소 주문의 `ORDER_CANCELLED`는 매분 만료 작업 또는 조회 시 동기화에서 생성됩니다.
 - DB: `notifications(id, user_id, type, title, message, order_id NULL, is_read, created_at)`. `(order_id, type)` 유니크로 중복 생성을 막습니다.
 
 #### F. 진행 중 주문 1건 — `GET /api/orders/me/current`
@@ -1014,3 +1015,9 @@ name 최대 100자(공백만 불가), description 최대 200자, category 최대
 저장소 미설정 시에도 서버와 기존 URL 방식은 동작합니다. 업로드 이미지는 UUID 기반 키와 URL을 DB에 저장합니다(image_object_key 컬럼 추가, 현재 ddl-auto=update 적용; 운영에서는 스키마 변경 필요). 외부 URL 이미지는 삭제하지 않습니다. 교체는 DB 커밋 후 이전 객체 삭제, 롤백 시 새 객체 삭제로 처리하며 같은 메뉴/가게의 수정을 DB 잠금으로 직렬화합니다. 기존 메뉴 수정 API에서 imageUrl을 바꾸거나 null로 비워도 이전 업로드 객체를 정리합니다.
 
 저장소 삭제 실패는 DB 저장을 되돌리지 않고 객체 키를 ERROR 로그에 남깁니다. 실패한 삭제는 해당 키로 수동 재시도해야 하며 자동 재시도 작업은 포함하지 않습니다. 스토리지 키/버킷을 변경할 때 기존 객체를 먼저 이관해야 합니다.
+
+## 확정 정책 및 테스트 충전 (2026-10-09)
+
+최신 정책은 [서비스 결정 사항](service-decisions.md)을 따릅니다. 신규 가입 마일리지는 0P, 충전은 토스 테스트 결제창으로만 수행합니다. 먼저 `POST /api/mileage/charge/prepare`에 `{ "amount":10000 }`을 보내 clientKey, customerKey, orderId, amount를 받고 결제창을 호출합니다. 성공 후 기존 confirm API를 호출합니다. `/test-charge.html`에서 전체 흐름을 테스트할 수 있습니다.
+
+도착 인증 전 직접 취소와 주문 후 1시간 미인증 자동 취소는 모두 100% 마일리지 환불입니다. 날짜가 바뀌어도 주문 후 1시간 기준을 적용합니다. 매분 만료 주문을 처리하고 조회 시에도 동기화합니다. 기존 혼잡도·식사 시간 정책은 유지합니다. 새 `mileage_charges` 테이블이 필요합니다(로컬 ddl-auto=update, 운영 스키마 변경 필요).
