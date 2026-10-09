@@ -44,4 +44,8 @@ public class User {
     public void changeMileage(int delta) {
         this.mileageBalance += delta;
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

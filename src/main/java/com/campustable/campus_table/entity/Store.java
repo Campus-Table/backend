@@ -39,4 +39,17 @@ public class Store {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    /** null이 아닌 값만 변경한다. 설명/분류/이미지는 빈 문자열을 보내면 값이 지워진다(null). */
+    public void update(String name, String description, String category, Integer avgWaitMinutes, String imageUrl) {
+        if (name != null) this.name = name;
+        if (description != null) this.description = blankToNull(description);
+        if (category != null) this.category = blankToNull(category);
+        if (avgWaitMinutes != null) this.avgWaitMinutes = avgWaitMinutes;
+        if (imageUrl != null) this.imageUrl = blankToNull(imageUrl);
+    }
+
+    private static String blankToNull(String value) {
+        return value.isBlank() ? null : value.trim();
+    }
 }

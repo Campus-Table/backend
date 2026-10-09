@@ -3,12 +3,14 @@ package com.campustable.campus_table.dto;
 import com.campustable.campus_table.common.CongestionLevel;
 import com.campustable.campus_table.entity.Menu;
 import com.campustable.campus_table.entity.OrderStatus;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 public final class AdminDtos {
@@ -61,6 +63,27 @@ public final class AdminDtos {
             @NotBlank(message = "메뉴 이름을 입력해주세요.") @Size(max = 100, message = "메뉴 이름은 100자 이하여야 합니다.") String name,
             @Min(value = 0, message = "가격은 0원 이상이어야 합니다.") int price,
             @Size(max = 500, message = "이미지 URL은 500자 이하여야 합니다.") String imageUrl) {
+    }
+
+    /** 보낸(null이 아닌) 항목만 수정한다. 설명/분류/이미지는 빈 문자열("")을 보내면 지워진다. */
+    public record StoreUpdateRequest(
+            @Size(min = 1, max = 100, message = "가게 이름은 1~100자여야 합니다.") String name,
+            @Size(max = 200, message = "설명은 200자 이하여야 합니다.") String description,
+            @Size(max = 30, message = "분류는 30자 이하여야 합니다.") String category,
+            @Min(value = 1, message = "평균 대기시간은 1분 이상이어야 합니다.")
+            @Max(value = 120, message = "평균 대기시간은 120분 이하여야 합니다.") Integer avgWaitMinutes,
+            @Size(max = 500, message = "이미지 URL은 500자 이하여야 합니다.") String imageUrl) {
+    }
+
+    /** 보낸(null이 아닌) 항목만 수정한다. */
+    public record CafeteriaUpdateRequest(
+            @Size(min = 1, max = 100, message = "식당 이름은 1~100자여야 합니다.") String name,
+            @Min(value = 1, message = "좌석 수는 1석 이상이어야 합니다.")
+            @Max(value = 10000, message = "좌석 수는 10,000석 이하여야 합니다.") Integer seatCount,
+            @Min(value = 1, message = "식사 시간은 1분 이상이어야 합니다.")
+            @Max(value = 240, message = "식사 시간은 240분 이하여야 합니다.") Integer diningMinutes,
+            LocalTime openingTime,
+            LocalTime closingTime) {
     }
 
     public record AvailabilityRequest(@NotNull(message = "available 값이 필요합니다.") Boolean available) {

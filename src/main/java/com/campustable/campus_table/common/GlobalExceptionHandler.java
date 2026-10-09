@@ -14,7 +14,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomException.class)
     ResponseEntity<ErrorResponse> custom(CustomException e) {
-        return build(ErrorResponse.of(e.getErrorCode()));
+        return build(ErrorResponse.of(e.getErrorCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(RateLimitException.class)
+    ResponseEntity<ErrorResponse> rateLimited(RateLimitException e) {
+        var body = ErrorResponse.of(e.getErrorCode(), e.getMessage());
+        var response = ResponseEntity.status(body.status());
+        if (e.getRetryAfterSeconds() > 0) {
+            response.header("Retry-After", String.valueOf(e.getRetryAfterSeconds()));
+        }
+        return response.body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

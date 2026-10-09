@@ -31,6 +31,7 @@
 - `VALIDATION_FAILED`의 `message`는 **첫 번째로 실패한 입력 항목**의 안내 문구입니다 (예: `학번은 숫자 8자리여야 합니다.`).
 - 존재하지 않는 경로(404), 허용되지 않은 메서드(405)는 `code: INVALID_REQUEST`로 내려옵니다.
 - 경로 변수/쿼리 값의 타입이 틀리면(예: `/cafeterias/abc`, `?status=BAD`) `400 INVALID_REQUEST`.
+- **`429`(요청 제한)** 응답에는 `Retry-After` 헤더(초)가 함께 내려가고, `message`에 "N분/N초 후"가 포함됩니다. 제한 규칙은 3장 "요청 제한"을 참고하세요.
 
 ### 에러 코드 목록
 
@@ -47,6 +48,10 @@
 | `EMAIL_NOT_VERIFIED` | 400 | 이메일 인증이 필요합니다. |
 | `INVALID_VERIFICATION_CODE` | 400 | 인증 코드가 올바르지 않거나 만료되었습니다. |
 | `USER_NOT_FOUND` | 404 | 해당 사용자를 찾을 수 없습니다. |
+| `INVALID_CURRENT_PASSWORD` | 400 | 현재 비밀번호가 올바르지 않습니다. |
+| `PASSWORD_UNCHANGED` | 400 | 새 비밀번호는 현재 비밀번호와 달라야 합니다. |
+| `TOO_MANY_LOGIN_ATTEMPTS` | 429 | 로그인 시도가 너무 많습니다. N분 후 다시 시도해주세요. |
+| `TOO_MANY_REQUESTS` | 429 | 요청이 너무 많습니다. (상황별 안내 문구: 인증 메일 요청 제한, 인증 코드 시도 제한) |
 | `CAFETERIA_NOT_FOUND` | 404 | 해당 식당을 찾을 수 없습니다. |
 | `STORE_NOT_FOUND` | 404 | 해당 가게를 찾을 수 없습니다. |
 | `MENU_NOT_FOUND` | 404 | 해당 메뉴를 찾을 수 없습니다. |
@@ -68,7 +73,10 @@
 | Auth | POST | `/api/auth/signup` | Public | 회원가입 |
 | Auth | POST | `/api/auth/login` | Public | 로그인 |
 | Auth | POST | `/api/auth/logout` | Public | 로그아웃 |
+| Auth | POST | `/api/auth/password/reset/send` | Public | 비밀번호 재설정 코드 발송 |
+| Auth | POST | `/api/auth/password/reset/confirm` | Public | 코드 확인 + 새 비밀번호 설정 |
 | User | GET | `/api/users/me` | 로그인 | 내 정보 |
+| User | PATCH | `/api/users/me/password` | 로그인 | 비밀번호 변경 |
 | Cafeteria | GET | `/api/cafeterias` | 로그인 | 학식당 목록 |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}` | 로그인 | 학식당 상세 |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/stores` | 로그인 | 학식당의 가게 목록 (필드 확장: 8-0 A) |
@@ -90,6 +98,9 @@
 | Notification | PATCH | `/api/notifications/{notificationId}/read` | 로그인 | 알림 읽음 처리 (8-0 E) |
 | Notification | PATCH | `/api/notifications/read-all` | 로그인 | 알림 모두 읽음 (8-0 E) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/arrival-code` | ADMIN | 오늘의 현장 번호 |
+| Admin | POST | `/api/admin/cafeterias/{cafeteriaId}/arrival-code/regenerate` | ADMIN | 현장 번호 재발급 |
+| Admin | PATCH | `/api/admin/cafeterias/{cafeteriaId}` | ADMIN | 식당 설정 수정 (이름, 좌석 수, 식사 시간, 영업시간) |
+| Admin | PATCH | `/api/admin/stores/{storeId}` | ADMIN | 가게 정보 수정 (이름, 설명, 분류, 평균 대기시간, 이미지) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 (`todayOrders` 추가: 8-0 B) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/queues` | ADMIN | 가게별 현재 대기번호 |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/store-stats` | ADMIN | 가게별 오늘 주문·대기·인기 메뉴 (8-0 B) |
@@ -131,6 +142,7 @@ Response — `200 OK`
 | `VALIDATION_FAILED` | 학번이 숫자 8자리가 아님 |
 | `DUPLICATE_STUDENT_NUMBER` | 이미 가입된 학번 |
 | `MAIL_SEND_FAILED` | 메일 발송 실패 |
+| `TOO_MANY_REQUESTS` (429) | 인증 메일 요청 제한 초과 (아래 "요청 제한") |
 
 ### POST `/api/auth/email/verify` — 인증 코드 확인
 
@@ -145,6 +157,7 @@ Response — `200 OK`
 | 에러 | 상황 |
 |---|---|
 | `INVALID_VERIFICATION_CODE` | 코드가 틀리거나 5분이 지남 |
+| `TOO_MANY_REQUESTS` (429) | 같은 코드로 5번까지 틀림 → 코드가 폐기되므로 인증 코드를 **다시 요청**해야 함 |
 
 ### POST `/api/auth/signup` — 회원가입
 
@@ -179,6 +192,7 @@ Response — `200 OK` + `Set-Cookie: SESSION=...`
 | 에러 | 상황 |
 |---|---|
 | `INVALID_CREDENTIALS` | 학번이 없거나 비밀번호가 틀림 (어느 쪽인지 구분해서 알려주지 않음) |
+| `TOO_MANY_LOGIN_ATTEMPTS` (429) | 로그인 시도 제한 초과. **잠금 중에는 비밀번호가 맞아도 거절**됩니다 |
 
 ### POST `/api/auth/logout` — 로그아웃
 
@@ -193,6 +207,89 @@ Response — `200 OK`
 ```json
 { "userId": 1, "studentNumber": "32201234", "name": "홍길동", "role": "USER" }
 ```
+
+### PATCH `/api/users/me/password` — 비밀번호 변경 (로그인)
+
+Request
+```json
+{ "currentPassword": "test1234", "newPassword": "newpass99" }
+```
+Response — `200 OK`
+```json
+{ "message": "Password changed" }
+```
+- 새 비밀번호는 8~50자이고 현재 비밀번호와 달라야 합니다.
+- **변경한 기기는 로그인이 유지되고, 다른 모든 기기의 로그인은 해제**됩니다 (다른 기기에서는 이후 요청이 `401`).
+- 현재 비밀번호를 틀리는 것은 **로그인 실패와 같은 한도**로 셉니다 (세션을 탈취당한 경우의 무차별 대입 방지).
+
+| 에러 | 상황 |
+|---|---|
+| `INVALID_CURRENT_PASSWORD` | 현재 비밀번호가 틀림 |
+| `PASSWORD_UNCHANGED` | 새 비밀번호가 현재와 같음 |
+| `VALIDATION_FAILED` | 새 비밀번호가 8~50자가 아님 / 필드 누락 |
+| `TOO_MANY_LOGIN_ATTEMPTS` (429) | 시도 제한 초과 |
+| `UNAUTHORIZED` | 로그인하지 않음 |
+
+### 비밀번호 재설정 (비밀번호를 잊었을 때)
+
+```text
+1) POST /api/auth/password/reset/send     학번 → 가입된 학교 메일로 6자리 코드 발송 (5분 유효)
+2) POST /api/auth/password/reset/confirm  학번 + 코드 + 새 비밀번호 → 변경 완료
+3) POST /api/auth/login                   새 비밀번호로 로그인
+```
+
+#### POST `/api/auth/password/reset/send` — 재설정 코드 발송
+Request
+```json
+{ "studentNumber": "32201234" }
+```
+Response — `200 OK`
+```json
+{ "message": "Verification code sent" }
+```
+- **가입된 학번이 아니어도 똑같이 `200`** 을 돌려줍니다 (메일은 보내지 않음). 학번의 가입 여부를 알아낼 수 없게 하기 위함입니다.
+- 코드는 가입 시 사용한 학교 메일로 발송됩니다.
+
+| 에러 | 상황 |
+|---|---|
+| `VALIDATION_FAILED` | 학번이 숫자 8자리가 아님 |
+| `TOO_MANY_REQUESTS` (429) | 인증 메일 요청 제한 초과 (아래 "요청 제한") |
+| `MAIL_SEND_FAILED` | 메일 발송 실패 |
+
+#### POST `/api/auth/password/reset/confirm` — 코드 확인 + 새 비밀번호
+Request
+```json
+{ "studentNumber": "32201234", "code": "123456", "newPassword": "newpass99" }
+```
+Response — `200 OK`
+```json
+{ "message": "Password reset" }
+```
+- 성공하면 **모든 기기의 로그인이 해제**되고, 로그인 시도 잠금도 풀립니다. 코드는 **한 번만** 쓸 수 있습니다.
+- 새 비밀번호가 8~50자가 아니거나 필드가 빠졌을 때는 코드가 소비되지 않습니다.
+
+| 에러 | 상황 |
+|---|---|
+| `INVALID_VERIFICATION_CODE` | 코드가 틀리거나 만료됨 / 가입되지 않은 학번 / 이미 사용한 코드 |
+| `TOO_MANY_REQUESTS` (429) | 같은 코드로 5번까지 틀림 → 코드 폐기, 다시 발송 필요 |
+| `VALIDATION_FAILED` | 입력 규칙 위반 |
+
+### 요청 제한 (무차별 대입·남용 방지)
+
+제한은 Redis에 저장되어 서버가 여러 대여도 공유됩니다. 제한에 걸리면 `429` + `Retry-After` 헤더가 내려갑니다.
+
+| 대상 | 규칙 | 에러 코드 |
+|---|---|---|
+| 로그인 (학번당) | 15분 동안 **5번까지만** 비밀번호를 확인합니다. 6번째부터 **15분간 잠금** (비밀번호가 맞아도 거절). 로그인에 성공하면 초기화 | `TOO_MANY_LOGIN_ATTEMPTS` |
+| 로그인 (IP당) | 실패가 **50번** 쌓이면 15분간 차단 (성공은 세지 않음) | `TOO_MANY_LOGIN_ATTEMPTS` |
+| 인증 메일 발송 (학번·용도당) | **60초 간격**, 시간당 **5회** | `TOO_MANY_REQUESTS` |
+| 인증 메일 발송 (IP당) | 시간당 **20회** | `TOO_MANY_REQUESTS` |
+| 인증 코드 확인 | 코드 하나당 **5번까지만** 비교. 5번째까지 틀리면 코드 폐기 | `TOO_MANY_REQUESTS` |
+
+- 존재하지 않는 학번의 실패도 똑같이 세므로, 응답만으로 학번의 가입 여부를 알 수 없습니다.
+- 가입용 코드와 재설정용 코드는 발송 한도가 서로 독립입니다.
+- 한계: 한 계정에 일부러 6번 시도하면 그 계정이 15분간 잠깁니다. 비밀번호 재설정으로 즉시 풀 수 있습니다.
+- 프론트 처리: `429`이면 `Retry-After`(초)만큼 버튼을 비활성화하고 `message`를 그대로 보여주세요.
 
 ---
 
@@ -477,6 +574,59 @@ Request body 없음. Response — `200 OK` (주문 응답 형식, `status: "CANC
 - 그날 처음 조회하거나 사용자가 처음 인증할 때 자동 생성되며, 하루 동안 같은 값입니다.
 - 관리자 화면에 표시하거나 학식당 현장에 게시하는 용도입니다.
 
+### POST `/api/admin/cafeterias/{cafeteriaId}/arrival-code/regenerate` — 현장 번호 재발급
+Request body 없음. Response — `200 OK` (조회와 같은 형식, 새 번호)
+```json
+{ "cafeteriaId": 1, "date": "2026-10-09", "code": "1693" }
+```
+- 오늘의 번호가 **이전 번호와 다른 새 4자리 번호**로 바뀝니다. 번호가 아직 없으면 새로 만듭니다.
+- **이미 도착 인증을 마친 주문(`COOKING` 등)에는 영향이 없고**, 아직 인증하지 않은(`PAID`) 사용자는 새 번호를 입력해야 합니다. 이전 번호로 인증하면 `INVALID_ARRIVAL_CODE`입니다.
+- 번호가 유출되었을 때나 현장 안내판을 바꿀 때 사용합니다. 동시에 여러 번 호출해도 식당·날짜당 번호는 하나만 유지됩니다.
+- 없는 식당: `404 CAFETERIA_NOT_FOUND`
+
+### PATCH `/api/admin/cafeterias/{cafeteriaId}` — 식당 설정 수정
+**보낸 항목만** 수정됩니다 (생략한 항목은 그대로). 최소 한 항목은 보내야 합니다.
+```json
+{ "name": "혜당관 학생식당", "seatCount": 120, "diningMinutes": 25, "openingTime": "11:00", "closingTime": "14:30" }
+```
+Response — `200 OK`: 수정된 식당 (`GET /api/cafeterias/{id}`와 같은 형식)
+```json
+{ "id": 1, "name": "혜당관 학생식당", "seatCount": 120, "diningMinutes": 25, "openingTime": "11:00:00", "closingTime": "14:30:00" }
+```
+| 항목 | 규칙 |
+|---|---|
+| `name` | 1~100자 (공백만은 불가) |
+| `seatCount` | 1~10,000 |
+| `diningMinutes` | 1~240. **이후에 수령하는 주문부터** 적용됩니다 (이미 수령한 주문의 이용 종료 시각은 그대로) |
+| `openingTime`, `closingTime` | `HH:mm` 또는 `HH:mm:ss`. **변경 후** 시작이 종료보다 빨라야 합니다 (하나만 보내도 기존 값과 비교). 영업시간을 비우는 기능은 없습니다 |
+
+- `seatCount`를 바꾸면 이용률·혼잡도 계산에 바로 반영됩니다.
+
+| 에러 | 상황 |
+|---|---|
+| `VALIDATION_FAILED` | 변경할 항목이 없음 / 범위·형식 위반 / 영업 종료가 시작보다 늦지 않음 |
+| `CAFETERIA_NOT_FOUND` | 없는 식당 |
+
+### PATCH `/api/admin/stores/{storeId}` — 가게 정보 수정
+**보낸 항목만** 수정됩니다. 최소 한 항목은 보내야 합니다.
+```json
+{ "name": "51장국밥", "description": "든든한 국밥과 한식 메뉴", "category": "한식", "avgWaitMinutes": 3, "imageUrl": "https://..." }
+```
+Response — `200 OK`: 수정된 가게 (`GET /api/stores/{id}`와 같은 형식, `minPrice`·`representativeMenuName` 포함)
+
+| 항목 | 규칙 |
+|---|---|
+| `name` | 1~100자 (공백만은 불가, 앞뒤 공백은 제거) |
+| `description` | 200자 이하. **빈 문자열 `""`을 보내면 값이 지워집니다(`null`)** |
+| `category` | 30자 이하. `""`이면 지워집니다 |
+| `avgWaitMinutes` | 1~120분. 이후 도착 인증하는 주문의 예상 대기시간 계산에 쓰입니다 |
+| `imageUrl` | 500자 이하. `""`이면 지워집니다 (이미지 파일 업로드는 아직 없음 — 8장) |
+
+| 에러 | 상황 |
+|---|---|
+| `VALIDATION_FAILED` | 변경할 항목이 없음 / 범위·길이 위반 |
+| `STORE_NOT_FOUND` | 없는 가게 |
+
 ### GET `/api/admin/cafeterias/{cafeteriaId}/dashboard` — 현황
 ```json
 {
@@ -583,8 +733,6 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 - **CCTV 이미지 기반 인원 추정 (CLOVA)** 및 시뮬레이션 데이터 주입 → 아래 8-1 참고
 - 혼잡도 구간 확정
 - 식사 시간(`diningMinutes`)을 가게/메뉴별로 다르게 할지 여부
-- 가게 정보(평균 대기시간 등) 관리자 수정
-- 학식당 현장 번호의 관리자 재발급
 
 ### 8-0. ✅ 프론트엔드 연동에서 추가된 API (구현 완료)
 
@@ -812,4 +960,6 @@ Query: `date`(선택). 시각순 스냅샷 목록 (`recordedAt`, `peopleCount`, 
 - 로컬 개발에서 인증 메일을 보내지 않으려면 `MAIL_ENABLED=false`로 실행합니다 (인증 코드가 서버 로그에 출력됨).
 - 서버 기동 시 `ADMIN_STUDENT_NUMBER` / `ADMIN_PASSWORD` 환경변수의 관리자 계정이 없으면 자동 생성됩니다.
 - 환경변수 목록은 `.env.example`을 참고하세요.
+- **Redis 요구사항**: 로그인 세션은 "사용자별 조회가 가능한(indexed)" 형태로 저장됩니다 (`spring.session.data.redis.repository-type: indexed`). 비밀번호 변경·재설정 때 다른 기기의 세션을 종료하려는 용도입니다. 요청 제한 카운터와 인증 코드도 같은 Redis를 사용합니다. 세션 만료 정리를 위해 Redis의 keyspace 알림(`notify-keyspace-events`)이 켜져 있어야 하며, 관리형 Redis에서 `CONFIG` 명령이 막혀 있으면 인프라 설정으로 켜야 합니다.
+- **배포(ALB) 시 IP 제한**: 로그인 IP 제한은 `request.getRemoteAddr()` 기준입니다. ALB 뒤에서는 클라이언트 IP가 `X-Forwarded-For`로 오므로 `server.forward-headers-strategy` 설정이 필요합니다 (설정 전에는 모든 사용자가 ALB의 IP 하나로 보입니다).
 - **프론트 로컬 개발**: Vite 기본 포트는 `5173`인데 서버의 CORS 기본값은 `http://localhost:3000`입니다. `.env`의 `CORS_ALLOWED_ORIGINS`를 `http://localhost:5173`으로 바꾸거나 Vite 프록시(`/api` → 백엔드)를 사용하세요. 요청에는 항상 `credentials: "include"`(axios `withCredentials: true`)가 필요합니다.
