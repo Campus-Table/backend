@@ -57,6 +57,7 @@
 | `INVALID_ARRIVAL_CODE` | 400 | 현장 번호가 올바르지 않습니다. |
 | `INSUFFICIENT_MILEAGE` | 400 | 마일리지가 부족합니다. |
 | `PAYMENT_FAILED` | 400 | 결제 승인에 실패했습니다. |
+| 🕓 `NOTIFICATION_NOT_FOUND` | 404 | 해당 알림을 찾을 수 없습니다. (알림 API 구현 시 추가) |
 
 ## 2. API 목록
 
@@ -70,23 +71,30 @@
 | User | GET | `/api/users/me` | 로그인 | 내 정보 |
 | Cafeteria | GET | `/api/cafeterias` | 로그인 | 학식당 목록 |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}` | 로그인 | 학식당 상세 |
-| Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/stores` | 로그인 | 학식당의 가게 목록 |
+| Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/stores` | 로그인 | 학식당의 가게 목록 (🕓 필드 확장: 8-0 A) |
 | Cafeteria | GET | `/api/cafeterias/{cafeteriaId}/status` | 로그인 | 혼잡도(이용/대기 인원) |
-| Store | GET | `/api/stores/{storeId}` | 로그인 | 가게 상세 |
+| Store | GET | `/api/stores/{storeId}` | 로그인 | 가게 상세 (🕓 필드 확장: 8-0 A) |
 | Store | GET | `/api/stores/{storeId}/menus` | 로그인 | 가게 메뉴 목록 |
 | Mileage | GET | `/api/mileage` | 로그인 | 마일리지 잔액 |
 | Mileage | GET | `/api/mileage/transactions` | 로그인 | 마일리지 내역 |
 | Mileage | POST | `/api/mileage/charge/confirm` | 로그인 | 결제 승인 후 충전 |
 | Order | POST | `/api/orders` | 로그인 | 선주문 + 마일리지 결제 |
 | Order | GET | `/api/orders/me` | 로그인 | 내 주문 목록 |
+| Order | GET | `/api/orders/me/current` | 로그인 | 🕓 진행 중인 내 주문 1건 (8-0 F) |
 | Order | GET | `/api/orders/{orderId}` | 로그인 | 내 주문 상세 |
 | Order | POST | `/api/orders/{orderId}/arrival` | 로그인 | 현장 번호 도착 인증 |
 | Order | POST | `/api/orders/{orderId}/receive` | 로그인 | 음식 수령 |
 | Order | POST | `/api/orders/{orderId}/cancel` | 로그인 | 주문 취소(도착 인증 전) |
+| Notification | GET | `/api/notifications` | 로그인 | 🕓 내 알림 목록 (8-0 E) |
+| Notification | GET | `/api/notifications/unread-count` | 로그인 | 🕓 읽지 않은 알림 수 (8-0 E) |
+| Notification | PATCH | `/api/notifications/{notificationId}/read` | 로그인 | 🕓 알림 읽음 처리 (8-0 E) |
+| Notification | PATCH | `/api/notifications/read-all` | 로그인 | 🕓 알림 모두 읽음 (8-0 E) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/arrival-code` | ADMIN | 오늘의 현장 번호 |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/dashboard` | ADMIN | 이용·대기 인원, 이용률, 혼잡도 (🕓 `todayOrders` 추가: 8-0 B) |
 | Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/queues` | ADMIN | 가게별 현재 대기번호 |
-| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/usage/hourly` | ADMIN | 시간대별 이용 현황 |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/store-stats` | ADMIN | 🕓 가게별 오늘 주문·대기·인기 메뉴 (8-0 B) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/waitings` | ADMIN | 🕓 현재 대기 목록 (8-0 C) |
+| Admin | GET | `/api/admin/cafeterias/{cafeteriaId}/usage/hourly` | ADMIN | 시간대별 이용 현황 (🕓 `peakPeople`/`avgPeople` 추가: 8-0 D) |
 | Admin | GET | `/api/admin/orders` | ADMIN | 주문 현황 |
 | Admin | GET | `/api/admin/orders/menu-counts` | ADMIN | 메뉴별 주문 인원 |
 | Admin | POST | `/api/admin/stores/{storeId}/menus` | ADMIN | 메뉴 추가 |
@@ -301,6 +309,12 @@ Response — `200 OK`
 - 충전 금액: **1,000원 이상 100,000원 이하**
 - 토스가 승인을 거절하면 `400 PAYMENT_FAILED` (이미 처리된 결제를 다시 보내는 경우 포함)
 - ⚠️ 승인은 토스 **테스트 키** 기준입니다. 실제 결제는 일어나지 않습니다.
+
+#### 프론트 연동 가이드 (토스 테스트 결제창 → 임시 결제)
+- 충전은 **토스 테스트 결제창**을 거쳐 진행합니다. 테스트 키를 쓰므로 결제창은 실제와 같게 동작하지만 **실제 청구는 일어나지 않고**, 승인이 성공하면 마일리지가 실제로 적립됩니다. (화면에서는 결제가 된 것처럼 보임)
+- 프론트가 준비할 것: 토스페이먼츠 결제 SDK 연동, 충전 금액 선택 화면, 결제 성공/실패 화면 (`successUrl` → 이 API 호출 → 잔액 갱신, `failUrl` → 안내). 클라이언트 키는 프론트 환경변수로 관리합니다.
+- `paymentKey`는 **토스 결제창에서 결제를 진행해야만 생성**되므로, 결제창 없이 서버만으로 충전을 완료하는 방법은 없습니다. (개발용 우회 충전 API는 만들지 않습니다.)
+- 충전이 완료되면 알림 `MILEAGE_CHARGED`가 생성됩니다 (8-0 E).
 
 ---
 
@@ -551,13 +565,176 @@ Response — `200 OK` + 변경된 메뉴(위 형식)
 
 회의록 기준으로 아직 구현되지 않았거나 확정되지 않은 항목입니다. 구현 전에 이 문서에 먼저 추가합니다.
 
-- 예상 시간 경과 후 **수령 안내 알림** (현재는 프론트 폴링으로 `READY` 확인)
+- **프론트엔드 코드 분석으로 확인된 추가 API** (알림, 가게 정보 확장, 관리자 통계 등) → 아래 8-0 참고
 - 메뉴 이미지 업로드 (NAVER Cloud Object Storage)
 - **CCTV 이미지 기반 인원 추정 (CLOVA)** 및 시뮬레이션 데이터 주입 → 아래 8-1 참고
 - 혼잡도 구간 확정
 - 식사 시간(`diningMinutes`)을 가게/메뉴별로 다르게 할지 여부
 - 가게 정보(평균 대기시간 등) 관리자 수정
 - 학식당 현장 번호의 관리자 재발급
+
+### 8-0. 🕓 프론트엔드 연동에서 확인된 추가 API
+
+프론트엔드(`frontend/`, React) 화면 코드를 분석해, 화면이 필요로 하지만 현재 API에 없는 것을 정리했습니다. (프론트는 아직 목 데이터를 사용 중)
+기본 원칙은 **기존 응답은 그대로 두고 필드/엔드포인트를 추가**하는 것이라, 이미 연동한 화면이 깨지지 않습니다.
+
+| 항목 | 종류 | 상태 |
+|---|---|---|
+| A. 가게 정보 확장 | 기존 응답에 필드 추가 | 확정 (담당: 식당/가게 도메인과 협의) |
+| B. 가게별 통계 + 대시보드 `todayOrders` | 신규 + 필드 추가 | 확정 |
+| C. 현재 대기 목록 | 신규 | 확정 |
+| D. 시간대별 이용 인원 | 기존 응답에 필드 추가 | 확정 (스냅샷 방식은 8-1 확정 후) |
+| E. 알림 API | 신규 | 확정 |
+| F. 진행 중 주문 1건 조회 | 신규 | 확정 |
+
+**제외한 것**: 대기번호는 지금처럼 **날마다 1번부터 가게별로 초기화되는 숫자**(`waitingNumber: 13`)를 그대로 씁니다. `A-013` 같은 표기는 프론트에서 필요하면 포맷만 하면 됩니다 (예: `String(n).padStart(3, '0')`).
+
+#### A. 가게 정보 확장 — `GET /api/cafeterias/{cafeteriaId}/stores`, `GET /api/stores/{storeId}`
+홈 화면의 가게 카드가 가게 설명, 분류, 대표 메뉴, 최저가를 보여줍니다. 지금은 이를 얻으려면 가게마다 메뉴 API를 추가로 호출해야 합니다.
+
+```json
+{
+  "id": 1,
+  "cafeteriaId": 1,
+  "name": "51장국밥",
+  "description": "든든한 국밥과 한식 메뉴",
+  "category": "한식",
+  "avgWaitMinutes": 2,
+  "imageUrl": null,
+  "minPrice": 1000,
+  "representativeMenuName": "고기만국밥"
+}
+```
+| 필드 | 설명 |
+|---|---|
+| `description` | 가게 한 줄 소개. 없으면 `null` |
+| `category` | 분류(한식, 아시안, 돈카츠, 분식, 일식, 덮밥 등). 없으면 `null` |
+| `minPrice` | 판매 중(`available`)인 메뉴의 최저가. 판매 중인 메뉴가 없으면 `null` |
+| `representativeMenuName` | 가게의 첫 번째 메뉴 이름(등록 순). 메뉴가 없으면 `null` |
+
+DB: `stores.description VARCHAR(200) NULL`, `stores.category VARCHAR(30) NULL` 추가. `minPrice`와 `representativeMenuName`은 메뉴에서 계산합니다. 입력은 시드 데이터로 하며, 관리자 수정 API는 이번 범위에서 제외합니다.
+
+#### B. 가게별 통계 — `GET /api/admin/cafeterias/{cafeteriaId}/store-stats` (ADMIN)
+관리자 대시보드의 "가게별 주문 현황"과 통계의 "가게별 주문 비중"에 쓰입니다.
+```json
+[
+  {
+    "storeId": 1,
+    "storeName": "51장국밥",
+    "todayOrders": 23,
+    "waitingCount": 4,
+    "topMenus": [
+      { "menuId": 12, "menuName": "순대국밥", "count": 11 },
+      { "menuId": 14, "menuName": "얼큰고기만국밥", "count": 7 },
+      { "menuId": 4, "menuName": "닭곰탕(밥 포함)", "count": 5 }
+    ]
+  }
+]
+```
+- 학식당의 **모든 가게**가 가게 ID 순으로 포함됩니다 (주문이 없으면 `0`, `topMenus: []`).
+- `todayOrders`: 오늘 주문한 수 (**취소 제외**). `waitingCount`: 현재 조리 중인 주문 수.
+- `topMenus`: 오늘 주문 수 기준 상위 3개 (`count` = 그 메뉴가 포함된 주문 수, 취소 제외, 동률은 메뉴 ID 순).
+
+`GET /api/admin/cafeterias/{cafeteriaId}/dashboard` 응답에 **`todayOrders`**(전 가게 합계, 취소 제외)를 추가합니다.
+```json
+{ "currentPeople": 87, "waitingPeople": 5, "seatCount": 120, "usageRate": 72.5, "congestionLevel": "CROWDED", "todayOrders": 124 }
+```
+
+#### C. 현재 대기 목록 — `GET /api/admin/cafeterias/{cafeteriaId}/waitings` (ADMIN)
+관리자 "현재 대기 현황" 화면(대기번호, 가게·메뉴, 대기 시작 시각, 준비까지 남은 시간)에 쓰입니다.
+```json
+[
+  {
+    "orderId": 7,
+    "waitingNumber": 13,
+    "storeId": 1,
+    "storeName": "51장국밥",
+    "status": "COOKING",
+    "items": [ { "menuId": 12, "menuName": "순대국밥", "quantity": 1 } ],
+    "arrivedAt": "2026-10-08T12:32:10",
+    "expectedReadyAt": "2026-10-08T12:38:34",
+    "remainingSeconds": 384
+  }
+]
+```
+- 오늘 도착 인증을 했고 아직 수령하지 않은 주문(`COOKING`, 예상 시간이 지난 `READY`)이며, **도착 인증이 최근인 순**입니다.
+- `READY`이면 `remainingSeconds`는 `0`입니다. 대시보드의 `waitingPeople`은 `COOKING`만 셉니다.
+- `GET /api/admin/orders?status=COOKING`과 달리 DB에 `COOKING`으로 남아 있는 지난 주문이 섞이지 않고, 남은 시간이 서버 기준으로 계산됩니다.
+
+#### D. 시간대별 이용 인원 — `GET /api/admin/cafeterias/{cafeteriaId}/usage/hourly` 확장
+관리자 통계의 "시간대별 이용 인원" 막대그래프는 **그 시간에 식당에 있던 인원**을 보여줍니다. 기존 응답은 주문·도착·수령 **건수**라서 `peakPeople`, `avgPeople`을 추가합니다.
+```json
+{ "hour": 12, "orderCount": 31, "arrivalCount": 28, "receivedCount": 27, "peakPeople": 87, "avgPeople": 62.5 }
+```
+- `peakPeople`: 그 시간대의 최대 이용 인원 / `avgPeople`: 평균 이용 인원 (소수 첫째 자리).
+- 계산 근거: 인원 스냅샷(8-1)이 있으면 그 시간대 스냅샷의 최대·평균, 없으면 주문 기반(수령 시각 ~ 이용 종료 시각이 겹치는 인원). 시뮬레이션 데이터도 스냅샷으로 들어가므로 같은 응답으로 나옵니다.
+- 항상 0~23시 24개 항목이며, 화면에서는 필요한 시간대(예: 09~16시)만 사용합니다.
+
+#### E. 알림 API — `/api/notifications` (로그인)
+학생 화면의 알림 탭과 홈의 알림 점(●)에 쓰입니다. 서버가 주문·충전 이벤트가 발생할 때 알림을 **저장**하고, 프론트는 조회합니다. (푸시/SSE는 포함하지 않으며, 프론트가 주기적으로 조회합니다.)
+
+알림 응답
+```json
+{
+  "id": 12,
+  "type": "FOOD_READY",
+  "title": "음식을 수령하러 와주세요",
+  "message": "예상 준비시간이 지났습니다. 51장국밥 수령대로 와주세요.",
+  "orderId": 7,
+  "read": false,
+  "createdAt": "2026-10-08T12:38:34"
+}
+```
+
+알림 종류 (`type`)
+| type | 발생 시점 | title | message 예 |
+|---|---|---|---|
+| `ORDER_PAID` | 선주문·결제 완료 | 선주문이 완료되었습니다 | 51장국밥 순대국밥 결제가 완료됐어요. |
+| `WAITING_NUMBER_ISSUED` | 도착 인증 완료 | 대기번호 13번이 발급되었습니다 | 도착 인증이 완료되어 대기번호가 발급됐어요. |
+| `COOKING_STARTED` | 도착 인증 완료 | 음식 조리가 시작되었습니다 | 예상 준비시간은 약 6분입니다. |
+| `FOOD_READY` | 예상 준비 시각 경과 | 음식을 수령하러 와주세요 | 예상 준비시간이 지났습니다. 51장국밥 수령대로 와주세요. |
+| `ORDER_CANCELLED` | 주문 취소 / 다음 날 미인증 자동 취소 | 주문이 취소되었습니다 | 결제 금액의 50%인 3,250P가 환불되었어요. |
+| `MILEAGE_CHARGED` | 마일리지 충전 성공 | 마일리지가 충전되었습니다 | 5,000P가 충전됐어요. |
+
+- 여러 메뉴가 있는 주문의 메시지는 `{첫 메뉴} 외 N개`로 표기합니다. `orderId`는 주문과 무관한 알림(`MILEAGE_CHARGED`)이면 `null`입니다.
+
+##### GET `/api/notifications` — 내 알림 목록
+Query: `unreadOnly`(선택, 기본 `false`), `limit`(선택, 기본 30, 최대 100). **최신순**의 알림 응답 배열입니다.
+
+##### GET `/api/notifications/unread-count` — 읽지 않은 알림 수
+```json
+{ "count": 2 }
+```
+홈 화면의 알림 점 표시용으로, 가볍게 주기적(예: 10~30초)으로 호출합니다.
+
+##### PATCH `/api/notifications/{notificationId}/read` — 읽음 처리
+Request body 없음. Response — `200 OK` + 읽음 처리된 알림. 이미 읽은 알림에도 `200`입니다.
+
+| 에러 | 상황 |
+|---|---|
+| `NOTIFICATION_NOT_FOUND` | 없는 알림 |
+| `FORBIDDEN` | 다른 사람의 알림 |
+
+##### PATCH `/api/notifications/read-all` — 모두 읽음
+```json
+{ "updated": 3 }
+```
+
+처리 규칙
+- 알림은 해당 이벤트가 일어난 **같은 트랜잭션에서 저장**됩니다 (주문 생성, 도착 인증, 취소, 충전 승인).
+- **`FOOD_READY`는 스케줄러 없이 조회 시점에 만들어집니다.** 예상 준비 시각이 지난 뒤 사용자가 알림 목록, 읽지 않은 수, 주문 API 중 하나를 처음 호출하면 생성되며 `createdAt`은 **예상 준비 시각**으로 기록됩니다. 주문당 1번만 생성됩니다. 그래서 프론트가 `unread-count`를 주기적으로 호출하면 준비 완료 알림이 자연스럽게 나타납니다.
+- 같은 방식으로 다음 날 자동 취소된 주문의 `ORDER_CANCELLED`도 조회 시점에 생성됩니다.
+- DB: `notifications(id, user_id, type, title, message, order_id NULL, is_read, created_at)`. `(order_id, type)` 유니크로 중복 생성을 막습니다.
+
+#### F. 진행 중 주문 1건 — `GET /api/orders/me/current`
+앱을 새로고침해도 "내 주문" 화면을 복원하기 위한 조회입니다. 진행 중(`PAID`/`COOKING`/`READY`)인 주문이 있으면 `200` + 주문 응답 형식, **없으면 `204 No Content`**(본문 없음)입니다. 지금은 `GET /api/orders/me`로 전체를 받아 걸러야 합니다.
+
+#### 변경 요약 (DB)
+| 대상 | 변경 |
+|---|---|
+| `stores` | `description`, `category` 컬럼 추가 |
+| `notifications` | 신규 테이블 |
+| `usage_snapshots` | `source` 컬럼 추가 (8-1) |
 
 ### 8-1. 🕓 이미지 기반 인원 추정 (제안 — 미확정)
 
@@ -622,3 +799,4 @@ Query: `date`(선택). 시각순 스냅샷 목록 (`recordedAt`, `peopleCount`, 
 - 로컬 개발에서 인증 메일을 보내지 않으려면 `MAIL_ENABLED=false`로 실행합니다 (인증 코드가 서버 로그에 출력됨).
 - 서버 기동 시 `ADMIN_STUDENT_NUMBER` / `ADMIN_PASSWORD` 환경변수의 관리자 계정이 없으면 자동 생성됩니다.
 - 환경변수 목록은 `.env.example`을 참고하세요.
+- **프론트 로컬 개발**: Vite 기본 포트는 `5173`인데 서버의 CORS 기본값은 `http://localhost:3000`입니다. `.env`의 `CORS_ALLOWED_ORIGINS`를 `http://localhost:5173`으로 바꾸거나 Vite 프록시(`/api` → 백엔드)를 사용하세요. 요청에는 항상 `credentials: "include"`(axios `withCredentials: true`)가 필요합니다.
