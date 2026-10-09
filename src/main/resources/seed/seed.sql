@@ -3,7 +3,7 @@
 -- 기동 시 자동 입력은 SEED_ENABLED=true 이고 식당이 하나도 없을 때만 동작합니다.
 SET NAMES utf8mb4;
 INSERT INTO cafeterias (name, seat_count, dining_minutes, opening_time, closing_time, created_at)
-SELECT '학식당', 120, 30, '09:00:00', '20:00:00', NOW() FROM DUAL
+SELECT '학식당', 220, 30, '09:00:00', '20:00:00', NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM cafeterias WHERE name = '학식당');
 SET @cid = (SELECT MIN(id) FROM cafeterias WHERE name = '학식당');
 
