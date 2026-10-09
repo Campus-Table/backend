@@ -74,6 +74,7 @@
 
 | 분류 | Method | URL | 권한 | 설명 |
 |---|---|---|---|---|
+| Health | GET | `/api/health` | Public | 헬스체크(ALB용). `200 {"status":"UP"}`, DB/Redis는 확인하지 않음 |
 | Auth | POST | `/api/auth/email/send` | Public | 학번 학교 메일로 인증 코드 발송 |
 | Auth | POST | `/api/auth/email/verify` | Public | 인증 코드 확인 |
 | Auth | POST | `/api/auth/signup` | Public | 회원가입 |

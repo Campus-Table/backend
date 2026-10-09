@@ -1,0 +1,17 @@
+# 운영: SPRING_PROFILES_ACTIVE=prod 로 켠다. 개발(로컬) 설정은 application.yml 그대로.
+server:
+  # ALB 뒤에서 X-Forwarded-For/Proto를 신뢰한다(클라이언트 IP, https 인식). 내부망(사설 IP) 프록시만 신뢰됨
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        # HTTPS(ALB 인증서) 운영이면 true. 인증서 없이 HTTP로만 운영(임시 시연)할 때만 COOKIE_SECURE=false
+        secure: ${COOKIE_SECURE:true}
+
+spring:
+  session:
+    data:
+      redis:
+        # 관리형 Redis는 CONFIG 명령이 막혀 있어 기동이 실패할 수 있으므로 앱이 설정하지 않는다.
+        # 인프라에서 notify-keyspace-events=Egx 를 미리 켜 둘 것(만료 세션 정리용). 앱이 직접 설정하게 하려면 REDIS_CONFIGURE_ACTION=notify_keyspace_events
+        configure-action: ${REDIS_CONFIGURE_ACTION:none}
