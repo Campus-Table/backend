@@ -52,10 +52,10 @@ public class OrderService {
 
         Map<Long, Integer> quantities = new LinkedHashMap<>();
         for (ItemRequest item : req.items()) {
-            quantities.merge(item.menuId(), item.quantity(), Integer::sum);
+            quantities.merge(item.menuId(), item.quantity(), (a, b) -> a + b);
         }
         Map<Long, Menu> menus = menuRepository.findAllById(quantities.keySet()).stream()
-                .collect(Collectors.toMap(Menu::getId, m -> m));
+                .collect(Collectors.toMap(menu -> menu.getId(), m -> m));
         int total = 0;
         for (var e : quantities.entrySet()) {
             Menu menu = menus.get(e.getKey());
@@ -92,7 +92,7 @@ public class OrderService {
     public Optional<OrderResponse> current(Long userId) {
         LocalDateTime now = LocalDateTime.now();
         return syncAndFindActive(userId, now).stream()
-                .max(Comparator.comparing(Order::getId))
+                .max(Comparator.comparing((Order order) -> order.getId()))
                 .map(o -> toResponses(List.of(o), now).get(0));
     }
 
@@ -242,7 +242,7 @@ public class OrderService {
             return List.of();
         }
         Map<Long, List<OrderItem>> items = orderItemRepository
-                .findByOrderIdIn(orders.stream().map(Order::getId).toList()).stream()
+                .findByOrderIdIn(orders.stream().map(order -> order.getId()).toList()).stream()
                 .collect(Collectors.groupingBy(i -> i.getOrder().getId()));
         return orders.stream()
                 .map(o -> OrderResponse.of(o, items.getOrDefault(o.getId(), List.of()), now)).toList();

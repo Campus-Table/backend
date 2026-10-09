@@ -33,7 +33,7 @@ public class StoreService {
         List<Store> stores = storeRepository.findByCafeteriaId(cafeteriaId);
         // 가게마다 메뉴를 조회하지 않고 한 번에 가져온다 (N+1 방지)
         Map<Long, List<Menu>> menusByStore = menuRepository
-                .findByStoreIdIn(stores.stream().map(Store::getId).toList()).stream()
+                .findByStoreIdIn(stores.stream().map(store -> store.getId()).toList()).stream()
                 .collect(Collectors.groupingBy(menu -> menu.getStore().getId()));
 
         return stores.stream()

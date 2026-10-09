@@ -813,3 +813,38 @@ Query: `date`(선택). 시각순 스냅샷 목록 (`recordedAt`, `peopleCount`, 
 - 서버 기동 시 `ADMIN_STUDENT_NUMBER` / `ADMIN_PASSWORD` 환경변수의 관리자 계정이 없으면 자동 생성됩니다.
 - 환경변수 목록은 `.env.example`을 참고하세요.
 - **프론트 로컬 개발**: Vite 기본 포트는 `5173`인데 서버의 CORS 기본값은 `http://localhost:3000`입니다. `.env`의 `CORS_ALLOWED_ORIGINS`를 `http://localhost:5173`으로 바꾸거나 Vite 프록시(`/api` → 백엔드)를 사용하세요. 요청에는 항상 `credentials: "include"`(axios `withCredentials: true`)가 필요합니다.
+
+## 관리자 이미지 업로드 및 가게 수정
+
+ADMIN 세션 쿠키가 필요합니다.
+
+- `POST /api/admin/menus/{menuId}/image`
+- `POST /api/admin/stores/{storeId}/image`
+
+`multipart/form-data`의 `file` 필드로 파일 한 개를 전송합니다. JPEG/PNG/WebP, 최대 2MiB(2,097,152바이트), 최대 2천만 픽셀입니다. 확장자와 요청 Content-Type 대신 실제 파일을 디코딩해 검사합니다. 성공 시 200과 수정된 메뉴/가게 정보(`imageUrl` 포함)를 반환합니다.
+
+```js
+const body = new FormData();
+body.append('file', selectedFile);
+const response = await fetch(`/api/admin/menus/${menuId}/image`, {
+  method: 'POST', credentials: 'include', body
+}); // Content-Type은 브라우저가 boundary와 함께 설정
+```
+
+`PUT /api/admin/stores/{storeId}`는 아래 JSON으로 이름·설명·분류·평균 대기시간을 수정합니다. 이미지 값은 유지됩니다. name과 avgWaitMinutes는 필수이며 description/category 생략 또는 null은 해당 값을 비웁니다.
+
+```json
+{"name":"한식", "description":"오늘의 식사", "category":"한식", "avgWaitMinutes":3}
+```
+
+name 최대 100자(공백만 불가), description 최대 200자, category 최대 30자, avgWaitMinutes 0 이상. 응답: id, cafeteriaId, name, description, category, avgWaitMinutes, imageUrl.
+
+오류: 400 INVALID_IMAGE/VALIDATION_FAILED, 413 IMAGE_TOO_LARGE, 404 MENU_NOT_FOUND/STORE_NOT_FOUND, 503 STORAGE_NOT_CONFIGURED, 502 STORAGE_FAILED. 로그인 없음 401, 일반 사용자 403.
+
+### Object Storage 설정
+
+`.env.example`의 OBJECT_STORAGE_* 값을 `.env`/배포 환경에 설정하고 OBJECT_STORAGE_ENABLED=true로 활성화합니다. 키는 서버에만 보관합니다. 한국 endpoint는 https://kr.object.ncloudstorage.com, region은 kr-standard입니다. 버킷은 사전에 생성하고 서버 키에 해당 버킷의 업로드/삭제 권한을 부여합니다. 이미지 조회는 공개 읽기 가능한 `images/` 경로 또는 CDN을 구성하고 OBJECT_STORAGE_PUBLIC_BASE_URL을 그 경로의 기본 URL로 지정합니다(예: https://kr.object.ncloudstorage.com/my-bucket). 서버는 객체 ACL을 변경하지 않습니다. 기본 URL 최대 400자.
+
+저장소 미설정 시에도 서버와 기존 URL 방식은 동작합니다. 업로드 이미지는 UUID 기반 키와 URL을 DB에 저장합니다(image_object_key 컬럼 추가, 현재 ddl-auto=update 적용; 운영에서는 스키마 변경 필요). 외부 URL 이미지는 삭제하지 않습니다. 교체는 DB 커밋 후 이전 객체 삭제, 롤백 시 새 객체 삭제로 처리하며 같은 메뉴/가게의 수정을 DB 잠금으로 직렬화합니다. 기존 메뉴 수정 API에서 imageUrl을 바꾸거나 null로 비워도 이전 업로드 객체를 정리합니다.
+
+저장소 삭제 실패는 DB 저장을 되돌리지 않고 객체 키를 ERROR 로그에 남깁니다. 실패한 삭제는 해당 키로 수동 재시도해야 하며 자동 재시도 작업은 포함하지 않습니다. 스토리지 키/버킷을 변경할 때 기존 객체를 먼저 이관해야 합니다.

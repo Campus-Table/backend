@@ -10,21 +10,21 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/stores")
+@RequestMapping("/api/stores/{storeId}")
 @RequiredArgsConstructor
 public class StoreController {
 
     private final StoreService storeService;
     private final MenuService menuService;
 
-    @GetMapping("/{storeId}")
+    @GetMapping
     public StoreResponse getStore(
             @PathVariable Long storeId
     ) {
         return storeService.getStore(storeId);
     }
 
-    @GetMapping("/{storeId}/menus")
+    @GetMapping("/menus")
     public List<MenuResponse> getMenus(
             @PathVariable Long storeId
     ) {

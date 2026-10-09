@@ -34,6 +34,14 @@ public class Menu {
     @Builder.Default
     private boolean available = true;
 
+    @Column(length = 200)
+    private String imageObjectKey;
+
+    public void changeImage(String url, String key) {
+        this.imageUrl = url;
+        this.imageObjectKey = key;
+    }
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
