@@ -117,7 +117,7 @@ class Sim:
             self.set_avg_wait(a.avg_wait)
         self.refresh_arrival_code()
         log(f"식당 {self.cafe['name']} 좌석 {self.seats}, 가게 {len(self.stores)}개, 계정 풀 {len(self.accounts)}, "
-            f"시드 {a.seed}, 프리셋 {a.preset}, 배속 {a.speed}")
+            f"시드 {a.seed}, 프리셋 {a.preset}")
 
     def set_avg_wait(self, minutes):
         saved = json.load(open(STATE_FILE)) if os.path.exists(STATE_FILE) else {}
@@ -175,7 +175,7 @@ class Sim:
         return i
 
     def person(self, prof, sn, store_idx):
-        S = self.a.speed
+        S = 1.0
         store = self.stores[store_idx]
         try:
             api = self.session(sn)
@@ -289,7 +289,7 @@ class Sim:
     def run(self):
         self.setup()
         threading.Thread(target=self.snapshot_loop, daemon=True).start()
-        S, tick, start, last_log = self.a.speed, 0.5, time.time(), 0
+        S, tick, start, last_log = 1.0, 0.5, time.time(), 0
         # 서버는 가게당 평균 대기시간마다 1건씩 처리하므로 처리량 이상으로 도착시키면 줄이 끝없이 길어진다
         avg = self.a.avg_wait or (sum(s["avg"] for s in self.stores) / len(self.stores))
         cap_real = 0.85 * len(self.stores) / (avg * 60)
@@ -342,7 +342,6 @@ def main():
     ap = argparse.ArgumentParser(description="Campus Table 시연 시뮬레이터")
     ap.add_argument("--target", default="http://localhost:8080", help="서버 주소")
     ap.add_argument("--preset", choices=PRESETS, default="lunch")
-    ap.add_argument("--speed", type=float, default=1.0, help="가상 시간 배속(식사 시간·도착 곡선만 빨라짐. 서버의 조리 시간은 실제 시간이라 3 이하 권장)")
     ap.add_argument("--seed", type=int, default=None, help="같은 시나리오 재생용 시드(없으면 무작위)")
     ap.add_argument("--minutes", type=float, default=0, help="이 시간(가상 분) 뒤 종료. 0이면 프리셋 기준")
     ap.add_argument("--avg-wait", type=int, default=1, help="시연 중 가게 평균 대기시간(분). 0이면 건드리지 않음")
