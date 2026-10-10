@@ -39,3 +39,12 @@ out/
 ### env ###
 .env
 demo/.state.json
+
+# 운영용 비밀 환경변수
+deploy/.env.production
+
+# 별도 프론트 저장소 및 로컬 빌드
+.local/
+
+# 로컬 인증 세션
+cookie.txt
